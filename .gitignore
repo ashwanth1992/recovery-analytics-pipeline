@@ -1,0 +1,19 @@
+# OAuth credentials — never commit
+creds.json
+
+# clasp auth token (contains OAuth refresh token)
+.clasprc.json
+
+# Dev scratchpad
+temp.js
+
+# clasp project config (contains your personal Script ID)
+.clasp.json
+
+# Claude Code internal directory
+.claude/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp

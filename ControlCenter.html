@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance · Pipeline Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+/* ── DESIGN TOKENS ─────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --bg:            #F1F5F9;
+  --card-bg:       rgba(255,255,255,0.92);
+  --card-bg-hover: #FFFFFF;
+  --card-blur:     0px;
+  --card-border:   #E2E8F0;
+  --tbl-head-bg:   #F8FAFC;
+  --surface:       #FFFFFF;
+  --orb-vis:       0;
+
+  /* Text */
+  --text:   #0F172A;
+  --text2:  #334155;
+  --text3:  #94A3B8;
+
+  /* Semantic colours */
+  --green:  #16A34A; --green-light:  #F0FDF4; --green-mid:    #BBF7D0;
+  --amber:  #D97706; --amber-light:  #FFFBEB; --amber-border: #FDE68A;
+  --red:    #DC2626; --red-light:    #FEF2F2; --red-border:   #FECACA;
+  --blue:   #2563EB; --blue-light:   #EFF6FF; --blue-border:  #BFDBFE;
+  --purple: #7C3AED; --purple-light: #F5F3FF; --purple-border:#DDD6FE;
+  --teal:   #0D9488; --teal-light:   #F0FDFA; --teal-border:  #99F6E4;
+  --indigo: #4338CA; --indigo-light: #EEF2FF; --indigo-border:#C7D2FE;
+
+  /* Badge tokens (light) */
+  --bdg-green-bg: #F0FDF4;  --bdg-green-fg: #16A34A;  --bdg-green-br: #BBF7D0;
+  --bdg-amber-bg: #FFFBEB;  --bdg-amber-fg: #D97706;  --bdg-amber-br: #FDE68A;
+  --bdg-red-bg:   #FEF2F2;  --bdg-red-fg:   #DC2626;  --bdg-red-br:   #FECACA;
+  --bdg-blue-bg:  #EFF6FF;  --bdg-blue-fg:  #2563EB;  --bdg-blue-br:  #BFDBFE;
+  --bdg-purp-bg:  #F5F3FF;  --bdg-purp-fg:  #7C3AED;  --bdg-purp-br:  #DDD6FE;
+  --bdg-mute-bg:  #F8FAFC;  --bdg-mute-fg:  #94A3B8;  --bdg-mute-br:  #E2E8F0;
+
+  /* Shadows */
+  --shadow:       0 1px 3px rgba(0,0,0,.06),  0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:    0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+  --shadow-lg:    0 16px 40px rgba(0,0,0,.12),0 4px 8px rgba(0,0,0,.05);
+  --shadow-hover: 0 8px 24px rgba(0,0,0,.10);
+
+  /* Geometry */
+  --radius:    16px;
+  --radius-sm: 10px;
+  --radius-xs: 7px;
+
+  /* Typography */
+  --font: 'Inter', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+[data-theme="dark"] {
+  --bg:            #060612;
+  --card-bg:       rgba(255,255,255,0.04);
+  --card-bg-hover: rgba(255,255,255,0.07);
+  --card-blur:     20px;
+  --card-border:   rgba(255,255,255,0.08);
+  --tbl-head-bg:   rgba(0,0,0,0.25);
+  --surface:       #0F172A;
+  --orb-vis:       1;
+
+  --text:   #F1F5F9;
+  --text2:  #94A3B8;
+  --text3:  #475569;
+
+  --green:  #4ADE80; --green-light:  rgba(74,222,128,.12);  --green-mid:    rgba(74,222,128,.3);
+  --amber:  #FCD34D; --amber-light:  rgba(252,211,77,.12);  --amber-border: rgba(252,211,77,.35);
+  --red:    #F87171; --red-light:    rgba(248,113,113,.12); --red-border:   rgba(248,113,113,.35);
+  --blue:   #60A5FA; --blue-light:   rgba(96,165,250,.12);  --blue-border:  rgba(96,165,250,.35);
+  --purple: #A78BFA; --purple-light: rgba(167,139,250,.12); --purple-border:rgba(167,139,250,.35);
+  --teal:   #2DD4BF; --teal-light:   rgba(45,212,191,.12);  --teal-border:  rgba(45,212,191,.35);
+  --indigo: #818CF8; --indigo-light: rgba(129,140,248,.12); --indigo-border:rgba(129,140,248,.35);
+
+  --bdg-green-bg: rgba(74,222,128,.12);  --bdg-green-fg: #4ADE80;  --bdg-green-br: rgba(74,222,128,.3);
+  --bdg-amber-bg: rgba(252,211,77,.12);  --bdg-amber-fg: #FCD34D;  --bdg-amber-br: rgba(252,211,77,.3);
+  --bdg-red-bg:   rgba(248,113,113,.12); --bdg-red-fg:   #F87171;  --bdg-red-br:   rgba(248,113,113,.3);
+  --bdg-blue-bg:  rgba(96,165,250,.12);  --bdg-blue-fg:  #93C5FD;  --bdg-blue-br:  rgba(96,165,250,.3);
+  --bdg-purp-bg:  rgba(167,139,250,.12); --bdg-purp-fg:  #C4B5FD;  --bdg-purp-br:  rgba(167,139,250,.3);
+  --bdg-mute-bg:  rgba(255,255,255,.05); --bdg-mute-fg:  #64748B;  --bdg-mute-br:  rgba(255,255,255,.1);
+
+  --shadow:       0 1px 4px rgba(0,0,0,.5);
+  --shadow-md:    0 4px 14px rgba(0,0,0,.6);
+  --shadow-lg:    0 16px 40px rgba(0,0,0,.75);
+  --shadow-hover: 0 8px 28px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.06);
+}
+
+/* ── RESET ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background .3s, color .3s;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: var(--font); cursor: pointer; border: none; background: none; }
+button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* ── BACKGROUND ORBS ─────────────────────────────────────────────── */
+.orbs {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  overflow: hidden;
+  opacity: var(--orb-vis);
+  transition: opacity .4s;
+}
+.orb {
+  position: absolute; border-radius: 50%;
+  filter: blur(80px); will-change: transform;
+}
+.orb-a {
+  width: 700px; height: 700px; top: -280px; left: -200px;
+  background: radial-gradient(circle, rgba(37,99,235,.22) 0%, transparent 70%);
+  animation: orbDrift 30s ease-in-out infinite;
+}
+.orb-b {
+  width: 600px; height: 600px; bottom: -150px; right: -150px;
+  background: radial-gradient(circle, rgba(124,58,237,.18) 0%, transparent 70%);
+  animation: orbDrift 38s ease-in-out infinite reverse;
+}
+.orb-c {
+  width: 450px; height: 450px; top: 45%; right: 15%;
+  background: radial-gradient(circle, rgba(13,148,136,.14) 0%, transparent 70%);
+  animation: orbDrift 24s ease-in-out infinite 8s;
+}
+@keyframes orbDrift {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(40px,-50px) scale(1.06); }
+  66%      { transform: translate(-30px,35px) scale(.94); }
+}
+
+/* ── SHELL ─────────────────────────────────────────────────────── */
+.shell {
+  max-width: 1200px; margin: 0 auto; padding: 24px 20px 72px;
+  position: relative; z-index: 1;
+}
+
+/* ── HEADER ─────────────────────────────────────────────────────── */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
+}
+.header-brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark {
+  width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+  background: linear-gradient(135deg, #2563EB 0%, #4338CA 100%);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 20px rgba(37,99,235,.4), 0 0 40px rgba(37,99,235,.15);
+  transition: box-shadow .3s;
+}
+[data-theme="light"] .brand-mark { box-shadow: 0 2px 8px rgba(37,99,235,.3); }
+.brand-dot { width: 9px; height: 9px; border-radius: 50%; background: #fff; transition: background .3s; }
+.brand-text { font-size: 17px; font-weight: 800; color: var(--text); letter-spacing: -.04em; }
+.brand-sub  { font-size: 11px; color: var(--text3); font-weight: 500; margin-top: 1px; font-family: var(--mono); letter-spacing: .01em; }
+
+.header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#pause-remaining { font-size: 11px; font-weight: 600; color: var(--amber); font-family: var(--mono); white-space: nowrap; }
+
+.hbtn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 13px; border-radius: var(--radius-xs);
+  font-size: 12px; font-weight: 600; transition: all .15s;
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  color: var(--text2); backdrop-filter: blur(var(--card-blur));
+  -webkit-backdrop-filter: blur(var(--card-blur));
+}
+.hbtn:hover { background: var(--card-bg-hover); color: var(--text); }
+.hbtn-icon {
+  width: 34px; height: 34px; border-radius: var(--radius-xs); flex-shrink: 0;
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  backdrop-filter: blur(var(--card-blur)); -webkit-backdrop-filter: blur(var(--card-blur));
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2); font-size: 15px; transition: all .15s;
+}
+.hbtn-icon:hover { background: var(--card-bg-hover); color: var(--text); }
+
+/* ── BENTO GRID ──────────────────────────────────────────────────── */
+.bento { display: grid; grid-template-columns: repeat(12,1fr); gap: 12px; margin-bottom: 12px; }
+.b-3  { grid-column: span 3; }
+.b-4  { grid-column: span 4; }
+.b-12 { grid-column: span 12; }
+
+/* ── GLASS CARD ──────────────────────────────────────────────────── */
+.bcard {
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur));
+  -webkit-backdrop-filter: blur(var(--card-blur));
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  position: relative; overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: background .2s, transform .2s ease, box-shadow .2s;
+}
+.bcard:hover {
+  background: var(--card-bg-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+.bcard-accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.bcard-label {
+  font-size: 10px; font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text3); margin-bottom: 4px;
+}
+.bcard-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; gap: 8px; }
+.bcard-val {
+  font-size: 30px; font-weight: 800; color: var(--text);
+  letter-spacing: -.05em; line-height: 1.05; margin: 8px 0 4px;
+}
+.bcard-sub { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+/* ── STATUS PILL ─────────────────────────────────────────────────── */
+.status-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  border: 1px solid; transition: all .25s; margin-top: 10px;
+}
+.pill-ok    { background: var(--green-light); color: var(--green); border-color: var(--green-mid); }
+.pill-run   {
+  background: var(--amber-light); color: var(--amber); border-color: var(--amber-border);
+  box-shadow: 0 0 16px rgba(252,211,77,.2), 0 0 0 3px rgba(252,211,77,.07);
+  animation: pillPulse 2.5s ease-in-out infinite;
+}
+.pill-error { background: var(--red-light); color: var(--red); border-color: var(--red-border); }
+@keyframes pillPulse {
+  0%,100% { box-shadow: 0 0 16px rgba(252,211,77,.2), 0 0 0 3px rgba(252,211,77,.07); }
+  50%      { box-shadow: 0 0 28px rgba(252,211,77,.35), 0 0 0 5px rgba(252,211,77,.12); }
+}
+[data-theme="light"] .pill-run { animation: none; box-shadow: none; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.dot-pulse { animation: dp 1.8s ease-in-out infinite; }
+@keyframes dp { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.55)} }
+
+/* ── BUTTONS ─────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: var(--radius-xs);
+  font-size: 12px; font-weight: 700; font-family: var(--font);
+  transition: all .15s; cursor: pointer; border: none; white-space: nowrap;
+  letter-spacing: -.01em;
+}
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-primary:hover { filter: brightness(1.12); }
+.btn-sm { font-size: 11px; padding: 5px 10px; border-radius: 6px; }
+.btn-outline {
+  background: var(--card-bg); color: var(--text2);
+  border: 1px solid var(--card-border);
+  backdrop-filter: blur(var(--card-blur));
+}
+.btn-outline:hover { background: var(--card-bg-hover); color: var(--text); }
+.btn-danger { background: var(--red-light); color: var(--red); border: 1px solid var(--red-border); }
+.btn-danger:hover { filter: brightness(.95); }
+
+.card-run-btn {
+  font-size: 10px; font-weight: 700; padding: 3px 9px;
+  border-radius: 6px; border: 1px solid; cursor: pointer;
+  transition: all .15s; white-space: nowrap; font-family: var(--font);
+}
+.card-run-btn:hover { filter: brightness(1.1); }
+
+/* ── AGG PILL ────────────────────────────────────────────────────── */
+.agg-pill { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; border: 1px solid transparent; }
+.agg-pill-idle    { background: var(--bdg-green-bg); color: var(--green); border-color: var(--bdg-green-br); }
+.agg-pill-queued  { background: var(--bdg-blue-bg);  color: var(--blue);  border-color: var(--bdg-blue-br); }
+.agg-pill-running {
+  background: var(--bdg-amber-bg); color: var(--amber); border-color: var(--bdg-amber-br);
+  animation: iconPulse 1.2s ease-in-out infinite, aggGlow 1.2s ease-in-out infinite;
+}
+@keyframes iconPulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+@keyframes aggGlow   { 0%,100%{box-shadow:0 0 0 0 transparent} 50%{box-shadow:0 0 8px rgba(252,211,77,.35)} }
+
+/* ── PROGRESS CARD ───────────────────────────────────────────────── */
+.progress-card {
+  background: var(--amber-light);
+  backdrop-filter: blur(var(--card-blur));
+  -webkit-backdrop-filter: blur(var(--card-blur));
+  border: 1px solid var(--amber-border);
+  border-radius: var(--radius); padding: 20px 22px;
+  box-shadow: 0 0 30px rgba(252,211,77,.08);
+  display: none; margin-bottom: 12px;
+  animation: progIn .3s ease;
+}
+.progress-card.show { display: block; }
+@keyframes progIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+.prog-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+.prog-title { font-size: 13px; font-weight: 700; color: var(--amber); }
+.prog-meta  { font-size: 11px; color: var(--text2); font-family: var(--mono); }
+.bar-track  { height: 4px; background: var(--card-border); border-radius: 2px; margin-bottom: 14px; overflow: hidden; }
+.bar-fill   {
+  height: 100%; background: var(--amber); border-radius: 2px;
+  transition: width .6s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 0 10px rgba(252,211,77,.5);
+  position: relative;
+}
+[data-theme="dark"] .bar-fill::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.25) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+.steps-wrap { margin-bottom: 12px; }
+.steps-focused { display: flex; gap: 8px; align-items: center; justify-content: center; }
+.step-item { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; max-width: 180px; min-width: 0; }
+.step-dot {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+  border: 1.5px solid; transition: all .3s;
+}
+.step-dot-done   { background: var(--bdg-green-bg); color: var(--green); border-color: var(--bdg-green-br); }
+.step-dot-active { background: var(--amber); color: #000; border-color: var(--amber); animation: activeGlow 1.6s ease-in-out infinite; }
+.step-dot-wait   { background: transparent; color: var(--text3); border-color: var(--card-border); }
+@keyframes activeGlow { 0%,100%{box-shadow:0 0 0 0 rgba(252,211,77,0)} 50%{box-shadow:0 0 0 7px rgba(252,211,77,.15)} }
+.step-label { font-size: 10px; color: var(--text3); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-family: var(--mono); }
+.step-label-active { color: var(--amber); font-weight: 600; }
+.step-connector { width: 24px; height: 1px; background: var(--card-border); flex-shrink: 0; margin-bottom: 18px; }
+.step-connector-done { background: var(--green); }
+.prog-current { font-size: 11px; color: var(--text2); font-family: var(--mono); }
+.prog-current strong { color: var(--text); }
+.show-all-wrap { margin-top: 10px; text-align: center; }
+.show-all-btn { font-size: 11px; color: var(--text3); text-decoration: underline; background: none; border: none; cursor: pointer; }
+.show-all-btn:hover { color: var(--text2); }
+.all-steps { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+.mini-step { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; transition: background .3s; }
+.mini-done   { background: var(--green); }
+.mini-active { background: var(--amber); }
+.mini-wait   { background: var(--card-border); }
+
+/* ── PHASE DOTS ──────────────────────────────────────────────────── */
+.phase-dots { display: flex; gap: 4px; margin-top: 6px; }
+.phase-dot  { flex: 1; height: 3px; border-radius: 2px; background: var(--card-border); transition: background .35s ease; }
+
+/* ── TABS ────────────────────────────────────────────────────────── */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--card-border); margin-bottom: 12px; }
+.tab {
+  padding: 9px 16px; font-size: 13px; font-weight: 600;
+  color: var(--text3); border-bottom: 2px solid transparent;
+  margin-bottom: -1px; cursor: pointer; background: none;
+  transition: color .15s; letter-spacing: -.01em;
+}
+.tab:hover { color: var(--text2); }
+.tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.pane { display: none; }
+.pane.active { display: block; }
+
+/* ── TABLE CARD ──────────────────────────────────────────────────── */
+.tbl-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur));
+  -webkit-backdrop-filter: blur(var(--card-blur));
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+}
+.tbl-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid var(--card-border);
+  gap: 8px; flex-wrap: wrap;
+}
+.tbl-title { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -.02em; }
+.toolbar-right { display: flex; gap: 8px; }
+
+table { width: 100%; border-collapse: collapse; }
+th {
+  font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text3); text-align: left; padding: 10px 18px;
+  background: var(--tbl-head-bg); border-bottom: 1px solid var(--card-border);
+}
+td { padding: 11px 18px; border-bottom: 1px solid var(--card-border); font-size: 13px; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--card-bg-hover); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,.04); }
+.job-name { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text); }
+.job-name.skipped { color: var(--text3); text-decoration: line-through; }
+.job-name.active  { color: var(--amber); font-weight: 600; }
+
+/* ── BADGES ──────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px; border-radius: 5px;
+  font-size: 10px; font-weight: 700; font-family: var(--mono);
+  border: 1px solid;
+}
+.badge-green  { background: var(--bdg-green-bg); color: var(--bdg-green-fg); border-color: var(--bdg-green-br); }
+.badge-amber  { background: var(--bdg-amber-bg); color: var(--bdg-amber-fg); border-color: var(--bdg-amber-br); }
+.badge-red    { background: var(--bdg-red-bg);   color: var(--bdg-red-fg);   border-color: var(--bdg-red-br);   }
+.badge-blue   { background: var(--bdg-blue-bg);  color: var(--bdg-blue-fg);  border-color: var(--bdg-blue-br);  }
+.badge-purple { background: var(--bdg-purp-bg);  color: var(--bdg-purp-fg);  border-color: var(--bdg-purp-br);  }
+.badge-muted  { background: var(--bdg-mute-bg);  color: var(--bdg-mute-fg);  border-color: var(--bdg-mute-br);  }
+
+/* ── ROW ACTIONS ─────────────────────────────────────────────────── */
+.row-actions { display: flex; align-items: center; gap: 4px; }
+.icon-btn {
+  width: 29px; height: 29px; border-radius: var(--radius-xs);
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s; flex-shrink: 0; color: var(--text2);
+}
+.icon-btn:hover            { background: var(--card-bg-hover); color: var(--text); }
+.icon-btn.run:hover        { background: var(--bdg-green-bg); color: var(--green); border-color: var(--bdg-green-br); }
+.icon-btn.reset:hover      { background: var(--bdg-blue-bg);  color: var(--blue);  border-color: var(--bdg-blue-br);  }
+.icon-btn.skip:hover       { background: var(--bdg-amber-bg); color: var(--amber); border-color: var(--bdg-amber-br); }
+.icon-btn.ext:hover        { background: var(--bdg-mute-bg);  color: var(--text);  border-color: var(--bdg-mute-br);  }
+.icon-btn.running-manual {
+  background: var(--bdg-amber-bg); color: var(--amber);
+  border-color: var(--bdg-amber-br); animation: iconPulse 1s ease-in-out infinite; cursor: not-allowed;
+}
+
+/* ── HISTORY ─────────────────────────────────────────────────────── */
+.hist-grid { display: grid; grid-template-columns: 110px 80px 1fr 80px 50px; gap: 8px; align-items: center; }
+.hist-head { padding: 10px 18px; border-bottom: 1px solid var(--card-border); background: var(--tbl-head-bg); }
+.hist-head span { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); }
+.hist-row { padding: 10px 18px; border-bottom: 1px solid var(--card-border); transition: background .12s; }
+.hist-row:last-child { border-bottom: none; }
+.hist-row:hover { background: var(--card-bg-hover); }
+[data-theme="dark"] .hist-row:hover { background: rgba(255,255,255,.04); }
+.hist-time { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+.hist-pipe { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text); }
+.hist-dur  { font-family: var(--mono); font-size: 11px; color: var(--text3); text-align: right; }
+.hist-jobs { font-family: var(--mono); font-size: 11px; color: var(--text3); text-align: right; }
+.ok   { color: var(--green); }
+.warn { color: var(--amber); }
+.err  { color: var(--red);   }
+.mute { color: var(--text3); }
+
+/* ── LOADER ──────────────────────────────────────────────────────── */
+.loader { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 55vh; gap: 16px; }
+.spinner {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 2.5px solid var(--card-border);
+  border-top-color: var(--blue);
+  animation: spin .75s linear infinite;
+  box-shadow: 0 0 16px rgba(96,165,250,.2);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-text { font-size: 12px; color: var(--text3); font-family: var(--mono); letter-spacing: .02em; }
+
+/* ── TOAST ───────────────────────────────────────────────────────── */
+.toast-wrap { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
+.toast {
+  padding: 10px 15px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+  border: 1px solid; box-shadow: var(--shadow-lg); max-width: 300px;
+  animation: toastIn .2s cubic-bezier(.175,.885,.32,1.275);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+}
+@keyframes toastIn { from{opacity:0;transform:translateY(10px) scale(.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+.toast-ok   { background: var(--bdg-green-bg); color: var(--green); border-color: var(--bdg-green-br); }
+.toast-err  { background: var(--bdg-red-bg);   color: var(--red);   border-color: var(--bdg-red-br);   }
+.toast-info { background: var(--bdg-blue-bg);  color: var(--blue);  border-color: var(--bdg-blue-br);  }
+
+/* ── DIALOG ──────────────────────────────────────────────────────── */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.55); z-index: 500;
+  align-items: center; justify-content: center; backdrop-filter: blur(4px);
+}
+.overlay.open { display: flex; }
+.dialog {
+  background: var(--card-bg);
+  backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius); padding: 28px; max-width: 380px;
+  width: 90%; box-shadow: var(--shadow-lg); animation: dlgIn .2s cubic-bezier(.175,.885,.32,1.275);
+}
+@keyframes dlgIn { from{opacity:0;transform:scale(.94)} to{opacity:1;transform:scale(1)} }
+.dialog-icon  { font-size: 28px; margin-bottom: 12px; }
+.dialog-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; color: var(--text); letter-spacing: -.03em; }
+.dialog-body  { font-size: 13px; color: var(--text2); line-height: 1.65; margin-bottom: 22px; }
+.dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .b-3 { grid-column: span 6; }
+  .b-4 { grid-column: span 6; }
+}
+@media (max-width: 600px) {
+  .bento { gap: 10px; grid-template-columns: 1fr 1fr; }
+  .b-3, .b-4, .b-12 { grid-column: span 2; }
+  .hist-grid { grid-template-columns: 90px 60px 1fr; }
+  .hist-dur, .hist-jobs { display: none; }
+}
+  </style>
+</head>
+<body>
+
+<!-- Background gradient orbs (dark mode only) -->
+<div class="orbs" aria-hidden="true">
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="orb orb-c"></div>
+</div>
+
+<div class="shell">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-brand">
+      <div class="brand-mark">
+        <div class="brand-dot" id="brand-dot"></div>
+      </div>
+      <div>
+        <div class="brand-text">Control Center</div>
+        <div class="brand-sub">Finance Pipeline</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div id="pause-remaining" style="display:none;"></div>
+      <button class="hbtn" id="pause-btn" onclick="handlePauseResume()">⏸ Pause</button>
+      <button class="hbtn" id="archive-btn" onclick="toggleArchiveMode()">📦 Archive</button>
+      <button class="hbtn-icon" onclick="toggleTheme()" id="theme-btn" title="Toggle theme">☀️</button>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div class="loader" id="loader">
+    <div class="spinner"></div>
+    <div class="loader-text">loading pipeline data...</div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main" style="display:none;">
+
+    <!-- ROW 1 — Status + Three key metrics -->
+    <div class="bento">
+
+      <div class="bcard b-3">
+        <div class="bcard-accent" style="background:linear-gradient(90deg,#2563EB,#4338CA);"></div>
+        <div class="bcard-label">Pipeline Status</div>
+        <div class="status-pill pill-ok" id="status-pill">
+          <div class="dot" id="status-dot"></div>
+          <span id="status-text">Checking...</span>
+        </div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:10px;line-height:1.6;" id="last-updated">Connecting...</div>
+      </div>
+
+      <div class="bcard b-3">
+        <div class="bcard-accent" style="background:var(--green);"></div>
+        <div class="bcard-head">
+          <div class="bcard-label">Active Jobs</div>
+          <button class="btn btn-primary btn-sm"
+            onclick="confirmAction('Run pipeline now?','This will manually trigger the Sentinel and start processing all due jobs immediately.','Run now','handleRunNow')">
+            ▶ Run now
+          </button>
+        </div>
+        <div class="bcard-val" id="m-jobs">--</div>
+        <div class="bcard-sub" id="m-jobs-sub">--</div>
+      </div>
+
+      <div class="bcard b-3">
+        <div class="bcard-accent" style="background:var(--blue);"></div>
+        <div class="bcard-label">Last 1H Run</div>
+        <div class="bcard-val" id="m-1h">--</div>
+        <div class="bcard-sub" id="m-1h-sub">--</div>
+      </div>
+
+      <div class="bcard b-3">
+        <div class="bcard-accent" style="background:var(--purple);"></div>
+        <div class="bcard-label">Last CBC-DED</div>
+        <div class="bcard-val" id="m-cbc">--</div>
+        <div class="bcard-sub" id="m-cbc-sub">--</div>
+      </div>
+    </div>
+
+    <!-- ROW 2 — Post-Sentinel Cards -->
+    <div class="bento">
+
+      <div class="bcard b-4">
+        <div class="bcard-accent" style="background:var(--teal);"></div>
+        <div class="bcard-head">
+          <div class="bcard-label">Dispo Aggregation</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <button class="card-run-btn"
+              style="background:var(--teal-light);color:var(--teal);border-color:var(--teal-border);"
+              onclick="confirmAction('Run Dispo Aggregation now?','Resets and immediately triggers a fresh dispo aggregation run.','Run dispo','handleRunDispoAgg')">Run</button>
+            <div class="agg-pill agg-pill-idle" id="dispo-status-pill">Idle</div>
+          </div>
+        </div>
+        <div class="bcard-val" id="m-dispo">--</div>
+        <div class="bcard-sub" id="m-dispo-sub">Not yet run today</div>
+        <div id="dispo-phase-bar" style="display:none;margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:5px;font-family:var(--mono);">
+            <span id="dispo-phase-label">Phase 0</span><span id="dispo-phase-pct">0%</span>
+          </div>
+          <div style="height:3px;background:var(--card-border);border-radius:2px;overflow:hidden;">
+            <div id="dispo-phase-fill" style="height:100%;background:var(--teal);border-radius:2px;transition:width .4s ease;width:0%;"></div>
+          </div>
+          <div class="phase-dots">
+            <div id="dispo-dot-0" class="phase-dot"></div><div id="dispo-dot-1" class="phase-dot"></div>
+            <div id="dispo-dot-2" class="phase-dot"></div><div id="dispo-dot-3" class="phase-dot"></div>
+            <div id="dispo-dot-4" class="phase-dot"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bcard b-4">
+        <div class="bcard-accent" style="background:var(--indigo);"></div>
+        <div class="bcard-head">
+          <div class="bcard-label">Call Aggregation</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <button class="card-run-btn"
+              style="background:var(--indigo-light);color:var(--indigo);border-color:var(--indigo-border);"
+              onclick="confirmAction('Run Call Aggregation now?','Resets and immediately triggers a fresh call log aggregation run.','Run call agg','handleRunCallAgg')">Run</button>
+            <div class="agg-pill agg-pill-idle" id="call-status-pill">Idle</div>
+          </div>
+        </div>
+        <div class="bcard-val" id="m-call">--</div>
+        <div class="bcard-sub" id="m-call-sub">Not yet run today</div>
+        <div id="call-phase-bar" style="display:none;margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:5px;font-family:var(--mono);">
+            <span id="call-phase-label">Phase 0</span><span id="call-phase-pct">0%</span>
+          </div>
+          <div style="height:3px;background:var(--card-border);border-radius:2px;overflow:hidden;">
+            <div id="call-phase-fill" style="height:100%;background:var(--indigo);border-radius:2px;transition:width .4s ease;width:0%;"></div>
+          </div>
+          <div class="phase-dots">
+            <div id="call-dot-0" class="phase-dot"></div><div id="call-dot-1" class="phase-dot"></div>
+            <div id="call-dot-2" class="phase-dot"></div><div id="call-dot-3" class="phase-dot"></div>
+            <div id="call-dot-4" class="phase-dot"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bcard b-4">
+        <div class="bcard-accent" style="background:var(--amber);"></div>
+        <div class="bcard-head">
+          <div class="bcard-label">Post Processing</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <button class="card-run-btn"
+              style="background:var(--amber-light);color:var(--amber);border-color:var(--amber-border);"
+              onclick="confirmAction('Run post-processing now?','Runs Penal metrics, Discount calc, and Daily inputs immediately outside the normal schedule.','Run PP','handleRunPostProcessing')">Run PP</button>
+            <div class="agg-pill agg-pill-idle" id="pp-status-pill">Idle</div>
+          </div>
+        </div>
+        <div class="bcard-val" id="m-pp">--</div>
+        <div class="bcard-sub" id="m-pp-sub">Not yet run today</div>
+        <div id="pp-step-bar" style="display:none;margin-top:12px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div style="display:flex;align-items:center;gap:5px;flex:1;">
+              <div id="pp-step-dot-0" style="width:20px;height:20px;border-radius:50%;background:var(--card-border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--text3);flex-shrink:0;">1</div>
+              <span style="font-size:10px;color:var(--text3);font-family:var(--mono);">Penal Metrics</span>
+            </div>
+            <div style="width:10px;height:1px;background:var(--card-border);flex-shrink:0;"></div>
+            <div style="display:flex;align-items:center;gap:5px;flex:1;">
+              <div id="pp-step-dot-1" style="width:20px;height:20px;border-radius:50%;background:var(--card-border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--text3);flex-shrink:0;">2</div>
+              <span style="font-size:10px;color:var(--text3);font-family:var(--mono);">Discount Calc</span>
+            </div>
+            <div style="width:10px;height:1px;background:var(--card-border);flex-shrink:0;"></div>
+            <div style="display:flex;align-items:center;gap:5px;flex:1;">
+              <div id="pp-step-dot-2" style="width:20px;height:20px;border-radius:50%;background:var(--card-border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--text3);flex-shrink:0;">3</div>
+              <span style="font-size:10px;color:var(--text3);font-family:var(--mono);">Daily Inputs</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROGRESS CARD -->
+    <div class="progress-card" id="prog-card">
+      <div class="prog-head">
+        <div class="prog-title" id="prog-title">Running...</div>
+        <div class="prog-meta"  id="prog-meta">--</div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="prog-bar" style="width:0%"></div></div>
+      <div class="steps-wrap">
+        <div class="steps-focused" id="prog-focused"></div>
+        <div class="show-all-wrap">
+          <button class="show-all-btn" onclick="toggleAllSteps()" id="all-steps-btn">Show all jobs</button>
+        </div>
+        <div class="all-steps" id="prog-all" style="display:none;"></div>
+      </div>
+      <div class="prog-current">Currently: <strong id="prog-current">--</strong></div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
+      <button class="tab" onclick="switchTab('history',this)">Run history</button>
+    </div>
+
+    <!-- DASHBOARD PANE -->
+    <div class="pane active" id="pane-dashboard">
+      <div class="tbl-card">
+        <div class="tbl-toolbar">
+          <div class="tbl-title" id="job-count">Jobs</div>
+          <div class="toolbar-right">
+            <button class="btn btn-outline"
+              onclick="confirmAction('Release pipeline lock?','Only use this if a pipeline run crashed without cleaning up. This clears the SENTINEL_RUNNING and CBC_DEDICATED_RUNNING semaphores.','Release lock','handleReleaseLock')">
+              Release lock
+            </button>
+            <button class="btn btn-danger"
+              onclick="confirmAction('Force reset ALL jobs?','Every job will fully rewrite all rows on the next run. This is typically done at the start of a new month. It is a heavy operation.','Force reset all','handleForceResetAll')">
+              Force reset all
+            </button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:38%">Job name</th><th style="width:10%">Schedule</th>
+              <th style="width:10%">Last run</th><th style="width:13%">Status</th>
+              <th style="width:10%">Duration</th><th style="width:19%">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="job-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:28px;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- HISTORY PANE -->
+    <div class="pane" id="pane-history">
+      <div class="tbl-card">
+        <div class="hist-grid hist-head">
+          <span>Timestamp</span><span>Pipeline</span><span>Outcome</span>
+          <span style="text-align:right;">Duration</span><span style="text-align:right;">Jobs</span>
+        </div>
+        <div id="hist-body">
+          <div style="padding:28px;text-align:center;color:var(--text3);font-size:13px;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<div class="toast-wrap" id="toasts"></div>
+
+<div class="overlay" id="overlay">
+  <div class="dialog">
+    <div class="dialog-icon" id="dlg-icon">⚠️</div>
+    <div class="dialog-title" id="dlg-title">Are you sure?</div>
+    <div class="dialog-body"  id="dlg-body">This action cannot be undone.</div>
+    <div class="dialog-actions">
+      <button class="btn btn-outline" onclick="closeDialog()">Cancel</button>
+      <button class="btn btn-primary" id="dlg-confirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────
+let _d = null, _pollTimer = null, _allStepsVisible = false, _pendingAction = null, _manualRunRow = null;
+const POLL_ACTIVE = 30000, POLL_IDLE = 60000, POLL_DORMANT = 300000;
+
+// ── BOOT ───────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('cc-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('theme-btn').textContent = saved === 'dark' ? '☀️' : '🌙';
+  fetch();
+});
+
+function toggleArchiveMode() {
+  const enabling = !document.getElementById('last-updated').textContent.includes('Archive');
+  toast(enabling ? 'Enabling archive mode...' : 'Disabling archive mode...', 'info');
+  google.script.run
+    .withSuccessHandler(() => {
+      toast(enabling ? '📦 Archive mode on.' : '✅ Archive mode off.', 'ok');
+      if (enabling) {
+        clearTimeout(_pollTimer);
+        document.getElementById('last-updated').textContent   = 'Archive mode · polling stopped';
+        document.getElementById('status-text').textContent    = 'Archive';
+        document.getElementById('brand-dot').style.background = 'var(--text3)';
+        document.getElementById('archive-btn').textContent    = '📦 Unarchive';
+      } else {
+        document.getElementById('archive-btn').textContent = '📦 Archive';
+        fetch();
+      }
+    })
+    .withFailureHandler(e => toast(e.message, 'err'))
+    .ccSetArchiveMode(enabling);
+}
+
+// ── FETCH ──────────────────────────────────────────────────────────────
+function fetch() {
+  google.script.run.withSuccessHandler(onData).withFailureHandler(onErr).getControlCenterData();
+}
+function onData(data) {
+  _d = data;
+  if (data.stale) {
+    document.getElementById('loader').style.display       = 'none';
+    document.getElementById('main').style.display         = 'block';
+    document.getElementById('last-updated').textContent   = 'Archive mode · polling stopped';
+    document.getElementById('status-text').textContent    = 'Archive';
+    document.getElementById('brand-dot').style.background = 'var(--text3)';
+    document.getElementById('archive-btn').textContent    = '📦 Unarchive';
+    clearTimeout(_pollTimer); return;
+  }
+  if (!data || !data.ok) { toast('Failed: ' + (data ? data.error : 'Unknown'), 'err'); poll(false, false); return; }
+  document.getElementById('loader').style.display = 'none';
+  document.getElementById('main').style.display   = 'block';
+  render(data);
+  poll(!!data.runningMode, data.withinHours);
+}
+function onErr(e) { toast('Connection error: ' + e.message, 'err'); poll(false, true); }
+function poll(running, withinHours) {
+  clearTimeout(_pollTimer);
+  _pollTimer = setTimeout(fetch, !withinHours ? POLL_DORMANT : running ? POLL_ACTIVE : POLL_IDLE);
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────
+function render(d) {
+  document.getElementById('last-updated').textContent = 'Updated ' + d.timestamp
+    + (!d.withinHours ? ' · outside operating hours' : '');
+  renderStatus(d); renderMetrics(d.metrics); renderPostSentinelState(d);
+  renderProgress(d); renderJobs(d.jobs, d.currentJobStatus); renderHistory(d.runHistory);
+}
+
+function renderStatus(d) {
+  const pill = document.getElementById('status-pill');
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  const bd   = document.getElementById('brand-dot');
+  const now  = Date.now();
+  const pauseBtn = document.getElementById('pause-btn');
+  const pauseRem = document.getElementById('pause-remaining');
+
+  if (d.pausedUntil && d.pausedUntil > now) {
+    const mins = Math.round((d.pausedUntil - now) / 60000);
+    pauseBtn.textContent = '▶ Resume';
+    pauseBtn.style.cssText = 'background:var(--amber-light);color:var(--amber);border-color:var(--amber-border);';
+    pauseRem.style.display = 'block';
+    pauseRem.textContent   = `⏸ ${mins}m left`;
+    pill.className = 'status-pill pill-run'; dot.className = 'dot';
+    text.textContent = `Paused · ${mins}m remaining`; bd.style.background = 'var(--amber)';
+    return;
+  }
+  pauseBtn.textContent = '⏸ Pause'; pauseBtn.style.cssText = '';
+  pauseRem.style.display = 'none';
+
+  const set = (cls, pulse, label, bdCol) => {
+    pill.className = 'status-pill ' + cls;
+    dot.className  = 'dot' + (pulse ? ' dot-pulse' : '');
+    text.textContent = label; bd.style.background = bdCol;
+  };
+  if      (d.runningMode === 'SENTINEL') set('pill-run', true, (d.sentinelPipeline||'1H') + ' pipeline running', 'var(--amber)');
+  else if (d.runningMode === 'CBC_DED')  set('pill-run', true, 'CBC-DED running', 'var(--amber)');
+  else if (d.activeRelay)                set('pill-run', true, 'Relay pending', 'var(--amber)');
+  else if (!d.withinHours)               set('pill-ok',  false, 'Outside operating hours', '#fff');
+  else                                   set('pill-ok',  false, 'All systems normal', '#fff');
+}
+
+function renderMetrics(m) {
+  if (!m) return;
+  document.getElementById('m-jobs').textContent     = m.activeJobs;
+  document.getElementById('m-jobs-sub').textContent = m.skippedJobs + ' skipped';
+  document.getElementById('m-1h').textContent       = m.lastDurations['1H'] || '--';
+  document.getElementById('m-1h-sub').textContent   = m.lastRuns['1H'] || 'No data';
+  document.getElementById('m-cbc').textContent      = m.lastDurations['CBC-DED'] || '--';
+  document.getElementById('m-cbc-sub').textContent  = m.lastRuns['CBC-DED'] || 'No data';
+  document.getElementById('m-dispo').textContent     = m.lastDurations['DISPO'] || '--';
+  document.getElementById('m-dispo-sub').textContent = m.lastRuns['DISPO'] ? 'Last: '+m.lastRuns['DISPO'] : 'Not yet run today';
+  document.getElementById('m-call').textContent      = m.lastDurations['CALL'] || '--';
+  document.getElementById('m-call-sub').textContent  = m.lastRuns['CALL'] ? 'Last: '+m.lastRuns['CALL'] : 'Not yet run today';
+  document.getElementById('m-pp').textContent        = m.lastDurations['PP'] || '--';
+  document.getElementById('m-pp-sub').textContent    = m.lastRuns['PP'] ? 'Last: '+m.lastRuns['PP'] : 'Not yet run today';
+}
+
+function _setPill(id, status) {
+  const el = document.getElementById(id); if (!el) return;
+  el.className = 'agg-pill ' + (status==='Running'?'agg-pill-running':status==='Queued'?'agg-pill-queued':'agg-pill-idle');
+  el.textContent = status;
+}
+
+function renderPostSentinelState(d) {
+  const DISPO_LABELS = ['PB Dispo','TCN 1','TCN 2','TCN 3','Dedup+Write'];
+  const CALL_LABELS  = ['Ozonetel','TCN 1','TCN 2','TCN 3','Anomaly scan'];
+  const TOTAL = 4;
+
+  const dispoBar = document.getElementById('dispo-phase-bar');
+  if (d.dispoRunning) {
+    const ph = d.dispoPhase||0; _setPill('dispo-status-pill','Running'); dispoBar.style.display='block';
+    document.getElementById('dispo-phase-label').textContent = `Phase ${ph}: ${DISPO_LABELS[ph]||''}`;
+    document.getElementById('dispo-phase-pct').textContent   = Math.round((ph/TOTAL)*100)+'%';
+    document.getElementById('dispo-phase-fill').style.width  = Math.round((ph/TOTAL)*100)+'%';
+    for(let i=0;i<=TOTAL;i++){const d=document.getElementById('dispo-dot-'+i);if(!d)continue;d.style.background=i<ph?'var(--teal)':i===ph?'var(--amber)':'var(--card-border)';}
+  } else { _setPill('dispo-status-pill',d.dispoPending?'Queued':'Idle'); dispoBar.style.display='none'; }
+
+  const callBar = document.getElementById('call-phase-bar');
+  if (d.callRunning) {
+    const ph = d.callPhase||0; _setPill('call-status-pill','Running'); callBar.style.display='block';
+    document.getElementById('call-phase-label').textContent = `Phase ${ph}: ${CALL_LABELS[ph]||''}`;
+    document.getElementById('call-phase-pct').textContent   = Math.round((ph/TOTAL)*100)+'%';
+    document.getElementById('call-phase-fill').style.width  = Math.round((ph/TOTAL)*100)+'%';
+    for(let i=0;i<=TOTAL;i++){const d=document.getElementById('call-dot-'+i);if(!d)continue;d.style.background=i<ph?'var(--indigo)':i===ph?'var(--amber)':'var(--card-border)';}
+  } else { _setPill('call-status-pill',d.callPending?'Queued':'Idle'); callBar.style.display='none'; }
+
+  const ppBar=document.getElementById('pp-step-bar'), ppStep=d.ppStep||0;
+  if (d.ppPending) {
+    _setPill('pp-status-pill','Running'); ppBar.style.display='flex';
+    for(let i=0;i<3;i++){const dot=document.getElementById('pp-step-dot-'+i);if(!dot)continue;
+      if(i<ppStep){dot.style.background='var(--green)';dot.style.color='#000';dot.textContent='✓';}
+      else if(i===ppStep){dot.style.background='var(--amber)';dot.style.color='#000';dot.textContent=i+1;}
+      else{dot.style.background='var(--card-border)';dot.style.color='var(--text3)';dot.textContent=i+1;}}
+  } else { _setPill('pp-status-pill','Idle'); ppBar.style.display='none'; }
+}
+
+function renderProgress(d) {
+  const card = document.getElementById('prog-card');
+  if (!d.runningMode||!d.currentJobStatus){card.classList.remove('show');return;}
+  card.classList.add('show');
+  const s=d.currentJobStatus, pct=s.totalJobs>0?Math.round((s.completedJobs/s.totalJobs)*100):0;
+  document.getElementById('prog-title').textContent = d.runningMode==='CBC_DED'?'CBC-DED · dedicated run':(d.sentinelPipeline||'1H')+' pipeline · '+s.completedJobs+' of '+s.totalJobs+' jobs done';
+  document.getElementById('prog-meta').textContent  = pct+'% · elapsed '+s.elapsedStr;
+  document.getElementById('prog-bar').style.width   = pct+'%';
+  document.getElementById('prog-current').textContent = s.currentJobName||'—';
+  renderFocusedSteps(s); renderAllSteps(s);
+}
+
+function renderFocusedSteps(s) {
+  const el=document.getElementById('prog-focused'), idx=s.currentJobIdx, jobs=s.jobStatuses;
+  const start=Math.max(0,idx-2), end=Math.min(jobs.length-1,idx+2);
+  el.innerHTML='';
+  for(let i=start;i<=end;i++){
+    const j={...jobs[i],idx:i};
+    if(i>start){const c=document.createElement('div');c.className='step-connector'+(j.done?' step-connector-done':'');el.appendChild(c);}
+    const item=document.createElement('div'); item.className='step-item';
+    const dc=j.done?'step-dot-done':j.active?'step-dot-active':'step-dot-wait';
+    const dl=j.done?'✓':j.active?'⟳':(j.idx+1);
+    item.innerHTML=`<div class="step-dot ${dc}">${dl}</div><div class="${j.active?'step-label step-label-active':'step-label'}" title="${j.name}">${(j.displayName||j.name.replace(/_/g,' ')).substring(0,22)}</div>`;
+    el.appendChild(item);
+  }
+}
+
+function renderAllSteps(s) {
+  const el=document.getElementById('prog-all'); el.innerHTML='';
+  s.jobStatuses.forEach(j=>{const d=document.createElement('div');d.className='mini-step '+(j.done?'mini-done':j.active?'mini-active':'mini-wait');d.title=j.name;el.appendChild(d);});
+}
+
+function toggleAllSteps() {
+  _allStepsVisible=!_allStepsVisible;
+  document.getElementById('prog-all').style.display=_allStepsVisible?'flex':'none';
+  document.getElementById('all-steps-btn').textContent=_allStepsVisible?'Hide all jobs':'Show all jobs';
+}
+
+function renderJobs(jobs,s){
+  if(!jobs||!jobs.length)return;
+  document.getElementById('job-count').textContent='Jobs ('+jobs.length+')';
+  const tbody=document.getElementById('job-tbody'); tbody.innerHTML='';
+  const runStartMs=_d&&_d.runningStartMs?_d.runningStartMs:null;
+  const isRunning=_d&&!!_d.runningMode, runYear=runStartMs?new Date(runStartMs).getFullYear():null;
+  const ICON_RUN  =`<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 3l10 5-10 5V3z"/></svg>`;
+  const ICON_RESET=`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M13 8A5 5 0 1 1 8 3"/><path d="M13 3v5h-5"/></svg>`;
+  const ICON_SKIP =`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="5.5"/><line x1="5" y1="5" x2="11" y2="11"/></svg>`;
+  const ICON_UNSK =`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="5.5"/><path d="M6 8l2 2 3-3"/></svg>`;
+  const ICON_EXT  =`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 4H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V9"/><path d="M10 3h3v3"/><line x1="13" y1="3" x2="7" y2="9"/></svg>`;
+
+  jobs.forEach(job=>{
+    const status=job.lastStatus||''; let isStale=false;
+    if(isRunning&&runStartMs&&status){const m=status.match(/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/);if(m){const jt=new Date(runYear,parseInt(m[2])-1,parseInt(m[1]),parseInt(m[3]),parseInt(m[4]),0);if(jt<new Date(runStartMs))isStale=true;}}
+    const isCR=status.includes('⚙️')||(s&&s.currentJobName===job.name), isMR=(_manualRunRow===job.configRow);
+    const isOk=status.includes('✅')||status.includes('Join Complete')||status.includes('Script Executed')||status.includes('Manual');
+    const isErr=status.includes('❌');
+    const tiers={'30M':1,'1H':2,'1D':3,'NIGHTLY':4}, rt=tiers[(_d&&_d.sentinelPipeline)||'1H']||2;
+    const sap=isStale&&isRunning&&!isCR&&!job.isSkipped&&!isMR&&(tiers[(job.schedule||'').toUpperCase()]||99)<=rt;
+    let badge='';
+    if(isMR)        badge='<span class="badge badge-amber" style="animation:iconPulse 1s ease-in-out infinite;">▶ Running...</span>';
+    else if(sap)    badge='<span class="badge badge-muted" style="opacity:.6;">Pending</span>';
+    else if(isCR)   badge='<span class="badge badge-amber">Executing</span>';
+    else if(status.includes('⏳')) badge='<span class="badge badge-amber">Relay pending</span>';
+    else if(isErr)  badge='<span class="badge badge-red">Error</span>';
+    else if(job.isSkipped) badge='<span class="badge badge-muted">Skipped</span>';
+    else if(isOk)   badge='<span class="badge badge-green">✓ Success</span>';
+    else            badge='<span class="badge badge-muted">—</span>';
+    const schMap={'30M':'badge-blue','1H':'badge-muted','1D':'badge-muted','NIGHTLY':'badge-muted','DEDICATED':'badge-purple'};
+    const schBadge='<span class="badge '+(schMap[job.schedule]||'badge-muted')+'">'+(job.schedule||'—')+'</span>';
+    const tm=status.match(/(\d{2}\/\d{2}\s+\d{2}:\d{2})/), dm=status.match(/\((\d+m\s*\d*s?|\d+s|\d+m)\)/);
+    const jn=job.name.replace(/'/g,"\\'");
+    const tr=document.createElement('tr'); if(sap)tr.style.opacity='0.6';
+    tr.innerHTML=`<td><span class="job-name ${job.isSkipped?'skipped':isCR||isMR?'active':''}" title="${job.name}">${job.displayName}</span></td>
+      <td>${schBadge}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text3);">${tm?tm[1].split(' ')[1]:'—'}</td>
+      <td>${badge}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text2);">${dm?dm[1]:'—'}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn run" title="Run this job now" onclick="confirmAction('Run &quot;${jn}&quot; now?','Force-resets cache and runs immediately.','Run job','handleRunSingleJob',${job.configRow},'${jn}')" ${isMR?'disabled style="cursor:not-allowed;opacity:.5;"':''}>${ICON_RUN}</button>
+        <button class="icon-btn reset" title="Force reset" onclick="confirmAction('Force reset?','Clears all cached hashes so the next run fully rewrites every row.','Force reset','handleForceReset',${job.configRow})">${ICON_RESET}</button>
+        <button class="icon-btn skip" title="${job.isSkipped?'Unskip':'Skip'}" onclick="confirmAction('${job.isSkipped?'Unskip':'Skip'} this job?','Toggles the [SKIP] flag.','${job.isSkipped?'Unskip':'Skip'}','handleToggleSkip',${job.configRow},'${jn}')">${job.isSkipped?ICON_UNSK:ICON_SKIP}</button>
+        <button class="icon-btn ext" title="View in sheet" onclick="openInSheet(${job.configRow})">${ICON_EXT}</button>
+      </div></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderHistory(history){
+  const el=document.getElementById('hist-body');
+  if(!history||!history.length){el.innerHTML='<div style="padding:28px;text-align:center;color:var(--text3);">No history available</div>';return;}
+  el.innerHTML=history.map(r=>{
+    const cls=r.outcome.includes('✅')?'ok':r.outcome.includes('⏳')?'warn':r.outcome.includes('❌')?'err':'mute';
+    const icon=r.outcome.split(' ')[0], txt=r.outcome.replace(/^[✅⏳❌💤]\s*/,'');
+    return `<div class="hist-grid hist-row"><span class="hist-time">${r.timestamp}</span><span class="hist-pipe">${r.pipeline}</span><span class="hist-dur ${cls}" style="text-align:left;">${icon} ${txt}</span><span class="hist-dur">${r.duration}</span><span class="hist-jobs">${r.jobsDone}</span></div>`;
+  }).join('');
+}
+
+// ── TABS ───────────────────────────────────────────────────────────────
+function switchTab(id,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active'); document.getElementById('pane-'+id).classList.add('active');
+}
+
+// ── CONFIRM DIALOG ─────────────────────────────────────────────────────
+const ACTION_META={
+  handleRunNow:{icon:'🚀',btn:'btn-primary'}, handleReleaseLock:{icon:'🔓',btn:'btn-primary'},
+  handleForceResetAll:{icon:'⚠️',btn:'btn-danger'}, handleToggleSkip:{icon:'⏭️',btn:'btn-primary'},
+  handleForceReset:{icon:'🔄',btn:'btn-primary'}, handleRunDedicated:{icon:'🎯',btn:'btn-primary'},
+  handleRunPostProcessing:{icon:'⚙️',btn:'btn-primary'}, handleRunDispoAgg:{icon:'📋',btn:'btn-primary'},
+  handleRunCallAgg:{icon:'📞',btn:'btn-primary'}, handleRunSingleJob:{icon:'▶️',btn:'btn-primary'},
+  doPausePipeline:{icon:'⏸️',btn:'btn-outline'}, doResumePipeline:{icon:'▶️',btn:'btn-primary'}
+};
+function confirmAction(title,body,btnLabel,fnName,...args){
+  const meta=ACTION_META[fnName]||{icon:'⚠️',btn:'btn-primary'};
+  document.getElementById('dlg-icon').textContent=meta.icon;
+  document.getElementById('dlg-title').textContent=title;
+  document.getElementById('dlg-body').textContent=body;
+  const btn=document.getElementById('dlg-confirm');
+  btn.textContent=btnLabel; btn.className='btn '+meta.btn;
+  _pendingAction=()=>window[fnName](...args);
+  document.getElementById('overlay').classList.add('open');
+}
+function closeDialog(){document.getElementById('overlay').classList.remove('open');_pendingAction=null;}
+document.getElementById('dlg-confirm').addEventListener('click',()=>{if(_pendingAction)_pendingAction();closeDialog();});
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target===document.getElementById('overlay'))closeDialog();});
+
+// ── ACTIONS ────────────────────────────────────────────────────────────
+function handleRunNow(){toast('Triggering pipeline...','info');google.script.run.withSuccessHandler(r=>{toast(r.ok?'Sentinel triggered.':r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>toast(e.message,'err')).ccTriggerManualRun();}
+function handleReleaseLock(){toast('Releasing lock...','info');google.script.run.withSuccessHandler(r=>{toast(r.ok?'Lock released.':r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>toast(e.message,'err')).ccReleaseLock();}
+function handleForceResetAll(){toast('Resetting all jobs...','info');google.script.run.withSuccessHandler(r=>{toast(r.ok?'All jobs reset.':r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>toast(e.message,'err')).ccForceResetAll();}
+function handleToggleSkip(configRow,name){toast('Updating job...','info');google.script.run.withSuccessHandler(r=>{toast(r.ok?'Job updated.':r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>toast(e.message,'err')).ccToggleSkip(configRow,name);}
+function handleForceReset(configRow){toast('Resetting job...','info');google.script.run.withSuccessHandler(r=>{toast(r.ok?'Job reset.':r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>toast(e.message,'err')).ccForceResetJob(configRow);}
+function handleRunPostProcessing(){toast('Queuing post-processing...','info');google.script.run.withSuccessHandler(r=>{toast(r.ok?'✅ Post-processing queued.':r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>toast(e.message,'err')).ccRunPostProcessing();}
+function handleRunDispoAgg(){toast('Starting dispo aggregation...','info');google.script.run.withSuccessHandler(r=>{toast(r.ok?'✅ Dispo aggregation queued.':r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>toast(e.message,'err')).ccRunDispoAgg();}
+function handleRunCallAgg(){toast('Starting call aggregation...','info');google.script.run.withSuccessHandler(r=>{toast(r.ok?'✅ Call aggregation started.':r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>toast(e.message,'err')).ccRunCallAgg();}
+function handleRunDedicated(){toast('Triggering CBC-DED...','info');google.script.run.withSuccessHandler(r=>{toast(r.ok?'Dedicated runner triggered.':r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>toast(e.message,'err')).ccRunDedicatedNow();}
+function handleRunSingleJob(configRow,name){
+  _manualRunRow=configRow; if(_d&&_d.jobs)renderJobs(_d.jobs,_d.currentJobStatus);
+  toast('Running '+name+'...','info');
+  google.script.run.withSuccessHandler(r=>{_manualRunRow=null;toast(r.ok?(r.message||'✅ Job complete.'):'❌ '+r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>{_manualRunRow=null;toast('Error: '+e.message,'err');fetch();}).ccRunSingleJob(configRow);
+}
+function handlePauseResume(){
+  const now=Date.now(), isPaused=_d&&_d.pausedUntil&&_d.pausedUntil>now;
+  if(isPaused)confirmAction('Resume pipeline?','The pipeline will resume immediately on the next Sentinel tick.','Resume','doResumePipeline');
+  else showPauseDialog();
+}
+function showPauseDialog(){
+  document.getElementById('dlg-icon').textContent='⏸️';
+  document.getElementById('dlg-title').textContent='Pause pipeline';
+  document.getElementById('dlg-body').innerHTML=`
+    <div style="margin-bottom:12px;color:var(--text2);line-height:1.6;">The pipeline will not process any jobs until resumed or the timer expires.</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <label style="font-size:12px;font-weight:600;color:var(--text2);">Pause duration</label>
+      <select id="pause-duration-select" style="font-family:var(--font);font-size:13px;padding:8px 12px;border-radius:var(--radius-xs);border:1px solid var(--card-border);background:var(--surface);color:var(--text);cursor:pointer;width:100%;">
+        <option value="0.5">30 minutes</option><option value="1" selected>1 hour</option>
+        <option value="2">2 hours</option><option value="4">4 hours</option>
+        <option value="8">8 hours</option><option value="custom">Custom...</option>
+      </select>
+      <input id="pause-custom-input" type="number" min="0.25" max="24" step="0.25" placeholder="Hours (e.g. 3.5)"
+        style="display:none;font-family:var(--font);font-size:13px;padding:8px 12px;border-radius:var(--radius-xs);border:1px solid var(--card-border);background:var(--surface);color:var(--text);width:100%;" />
+    </div>`;
+  setTimeout(()=>{const sel=document.getElementById('pause-duration-select'),inp=document.getElementById('pause-custom-input');if(sel)sel.addEventListener('change',()=>{inp.style.display=sel.value==='custom'?'block':'none';if(sel.value==='custom')inp.focus();});},50);
+  const btn=document.getElementById('dlg-confirm');
+  btn.textContent='Pause'; btn.className='btn btn-outline'; btn.style.borderColor='var(--amber)'; btn.style.color='var(--amber)';
+  _pendingAction=()=>{const sel=document.getElementById('pause-duration-select'),inp=document.getElementById('pause-custom-input');const hours=sel.value==='custom'?parseFloat(inp.value):parseFloat(sel.value);if(!hours||hours<=0||hours>24){toast('Please enter a valid duration between 0.25 and 24 hours.','err');return;}doPausePipeline(hours);};
+  document.getElementById('overlay').classList.add('open');
+}
+function doPausePipeline(hours){toast(`Pausing for ${hours}h...`,'info');google.script.run.withSuccessHandler(r=>{toast(r.ok?`⏸ Paused for ${hours}h.`:r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>toast(e.message,'err')).ccPausePipeline(hours);}
+function doResumePipeline(){toast('Resuming pipeline...','info');google.script.run.withSuccessHandler(r=>{toast(r.ok?'▶ Pipeline resumed.':r.error,r.ok?'ok':'err');fetch();}).withFailureHandler(e=>toast(e.message,'err')).ccResumePipeline();}
+
+let _sheetUrl=null;
+function openInSheet(row){
+  if(_sheetUrl){window.open(_sheetUrl+'#gid=0&range=A'+row,'_blank');return;}
+  google.script.run.withSuccessHandler(r=>{if(r.ok){_sheetUrl=r.url;window.open(_sheetUrl+'#gid=0&range=A'+row,'_blank');}else toast('Could not get sheet URL: '+r.error,'err');}).withFailureHandler(e=>toast(e.message,'err')).ccGetSheetUrl();
+}
+
+// ── THEME ──────────────────────────────────────────────────────────────
+function toggleTheme(){
+  const next=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  document.getElementById('theme-btn').textContent=next==='dark'?'☀️':'🌙';
+  localStorage.setItem('cc-theme',next);
+}
+
+// ── TOAST ──────────────────────────────────────────────────────────────
+function toast(msg,type){
+  const wrap=document.getElementById('toasts'),el=document.createElement('div');
+  el.className='toast toast-'+(type==='err'?'err':type==='info'?'info':'ok');
+  el.textContent=msg; wrap.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300);},3000);
+}
+</script>
+</body>
+</html>

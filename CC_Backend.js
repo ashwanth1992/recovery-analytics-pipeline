@@ -41,12 +41,12 @@ function getControlCenterData() {
 
     const dispoPending = p.getProperty("DISPO_AGG_PENDING") === "true";
     const dispoRunning = p.getProperty("DISPO_AGG_RUNNING") !== null;
-    const dispoPhase   = parseInt(p.getProperty("DISPO_AGG_PHASE") || "0");
+    const dispoPhase   = p.getProperty("DISPO_AGG_SOURCE_KEY") || "—";
 
     // ── NEW: Call Agg states ─────────────────────────────────────────────────
     const callPending  = p.getProperty("CALL_AGG_PENDING") === "true";
     const callRunning  = p.getProperty("CALL_AGG_RUNNING") !== null;
-    const callPhase    = parseInt(p.getProperty("CALL_AGG_PHASE") || "0");
+    const callPhase    = p.getProperty("CALL_AGG_SOURCE_KEY") || "—";
 
     let activeRelay = null;
     if (relayRaw) {
@@ -299,10 +299,9 @@ function ccRunPostProcessing() {
 function ccRunDispoAgg() {
   try {
     const p = PropertiesService.getScriptProperties();
-    ["DISPO_AGG_PENDING","DISPO_AGG_RUNNING","DISPO_AGG_PHASE","DISPO_AGG_READ_ROW","DISPO_AGG_START","DISPO_AGG_DONE"]
+    ["DISPO_AGG_PENDING","DISPO_AGG_RUNNING","DISPO_AGG_SOURCE_KEY","DISPO_AGG_READ_ROW","DISPO_AGG_START","DISPO_AGG_DONE"]
       .forEach(k => p.deleteProperty(k));
     p.setProperty("DISPO_AGG_PENDING", "true");
-    p.setProperty("DISPO_AGG_PHASE",   "0");
     p.setProperty("DISPO_AGG_START",   Date.now().toString());
     // Pre-satisfy the fence so PP can fire after dispo alone if needed
     p.setProperty("CALL_AGG_DONE", "true");

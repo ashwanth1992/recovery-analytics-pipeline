@@ -8,12 +8,9 @@
  *   triggerSentinel (1H) → sets DISPO_AGG_PENDING
  *       ↓
  *   triggerDispoAggregation (every 10 min)
- *     Phase 0: Read PB dispo    → filter → write to Dispo_Temp
- *     Phase 1: Read TCN_DISPO_1 → filter → append to Dispo_Temp
- *     Phase 2: Read TCN_DISPO_2 → filter → append (if day >= 11)
- *     Phase 3: Read TCN_DISPO_3 → filter → append (if day >= 21)
- *     Phase 4: Read Dispo_Temp  → dedup  → write to DESTINATION
- *     Phase 5: Run Filtered_Dispo_to_0bkt_input (copy merged output → 0bkt input)
+ *     Dynamically reads all active "Dispo_Merge" rows from Post_Sentinel tab,
+ *     in config order. Adding a new source = add a row, no code change needed.
+ *     Final step: dedup + write to DESTINATION
  *       ↓ sets POST_PROCESS_PENDING
  *   triggerPostProcessing (every 5 min) — unchanged
  *
@@ -23,7 +20,7 @@
  *
  * TABS IN CONTROL CENTER (created by setupPostSentinelTab):
  *   Post_Sentinel  — config store for all post-sentinel functions
- *   Dispo_Temp     — intermediate storage during aggregation phases (cleared after phase 4)
+ *   Dispo_Temp     — intermediate storage during aggregation (cleared each run)
  *   Dispo_Audit    — anomaly log (Rule 2b: PB-only, Rule 4: conflicting outcomes)
  * ==============================================================================
  */
@@ -38,15 +35,8 @@ const DISPO_AUDIT_TAB    = "Dispo_Audit";
 // 15-minute window in ms for cross-source dedup
 const DISPO_DEDUP_WINDOW_MS = 15 * 60 * 1000;
 
-// Phase labels for logging
-const DISPO_PHASE_LABELS = {
-  0: "PB Dispo read",
-  1: "TCN Dispo 1 read",
-  2: "TCN Dispo 2 read",
-  3: "TCN Dispo 3 read",
-  4: "Dedup + write destination",
-  5: "Filtered_Dispo_to_0bkt_input"
-};
+// Resume sentinel values stored in DISPO_AGG_SOURCE_KEY
+const DISPO_STAGE_DEDUP = "__DEDUP__";
 
 // Output columns written to destination and Dispo_Temp
 // Normalized from both PB and TCN schemas
@@ -118,19 +108,19 @@ function loadPostSentinelConfig(functionName) {
 
 /**
  * Called by a time-based trigger every 10 minutes.
- * Cascades continuously through all phases (0 to 5) in a single run.
- * Only yields to the relay system if it runs out of execution time.
+ * Dynamically iterates all active Dispo_Merge sources from the Post_Sentinel
+ * config tab. Resume state is stored as the config key of the current source
+ * (DISPO_AGG_SOURCE_KEY) rather than a hardcoded phase number — adding or
+ * removing source sheets requires no code change.
  */
 function triggerDispoAggregation() {
   const p = PropertiesService.getScriptProperties();
 
-  // Skip if not pending
   if (p.getProperty("DISPO_AGG_PENDING") !== "true") {
     Logger.log("💤 [DISPO_AGG] No aggregation pending. Skipping.");
     return;
   }
 
-  // Skip if another instance is running (with 28-min stale guard)
   const runningTs = p.getProperty("DISPO_AGG_RUNNING");
   if (runningTs) {
     const ageMs = Date.now() - parseInt(runningTs);
@@ -141,224 +131,185 @@ function triggerDispoAggregation() {
     Logger.log(`⚠️ [DISPO_AGG] Stale DISPO_AGG_RUNNING (${Math.round(ageMs/60000)}m). Clearing and proceeding.`);
   }
 
-  // Acquire running lock
   p.setProperty("DISPO_AGG_RUNNING", Date.now().toString());
 
-  let phase = parseInt(p.getProperty("DISPO_AGG_PHASE") || "0");
-  const startMs = Date.now();
-  const hardStop = MAX_EXECUTION_TIME_MS - 60000; // 24 min ceiling
-  
-  let allPhasesComplete = false;
+  const startMs  = Date.now();
+  const hardStop = MAX_EXECUTION_TIME_MS - 60000;
 
   try {
-    // 🔄 THE CASCADE LOOP: Run phases continuously until done or out of time
-    while (phase <= 5) {
-      Logger.log(`🚀 [DISPO_AGG] Starting phase ${phase}: ${DISPO_PHASE_LABELS[phase] || "unknown"}`);
-      let phaseComplete = false;
+    const currentKey = p.getProperty("DISPO_AGG_SOURCE_KEY");
+    const freshStart = !currentKey;
 
-      switch(phase) {
-        case 0: phaseComplete = _dispoPhase_ReadSource("PB_DISPO",  0, startMs, hardStop); break;
-        case 1: phaseComplete = _dispoPhase_ReadSource("TCN_DISPO_1", 1, startMs, hardStop); break;
-        case 2: phaseComplete = _dispoPhase_ReadSource("TCN_DISPO_2", 2, startMs, hardStop); break;
-        case 3: phaseComplete = _dispoPhase_ReadSource("TCN_DISPO_3", 3, startMs, hardStop); break;
-        case 4: phaseComplete = _dispoPhase_DedupAndWrite(startMs, hardStop); break;
-        //case 5: phaseComplete = _dispoPhase_FilteredDispoToInput(); break;
-        default:
-          Logger.log(`❌ [DISPO_AGG] Unknown phase: ${phase}. Resetting.`);
-          _dispoAggReset(p);
-          return;
+    // ── Stage 1: Read all active sources into Dispo_Temp ──────────────────
+    if (currentKey !== DISPO_STAGE_DEDUP) {
+      const sources = loadPostSentinelConfig("Dispo_Merge")
+        .filter(s => s.key !== "DESTINATION");
+
+      if (sources.length === 0) {
+        Logger.log("⚠️ [DISPO_AGG] No active Dispo_Merge sources in Post_Sentinel tab. Aborting.");
+        _dispoAggReset(p);
+        return;
       }
 
-      if (phaseComplete) {
-        Logger.log(`✅ [DISPO_AGG] Phase ${phase} complete.`);
-        
-        if (phase === 4) {
-          allPhasesComplete = true;
-          break; // Exit the while loop
-        } else {
-          // Advance to next phase immediately in memory and properties
-          phase++;
-          p.setProperty("DISPO_AGG_PHASE", phase.toString());
-          p.deleteProperty("DISPO_AGG_READ_ROW");
+      if (freshStart) {
+        p.setProperty("DISPO_AGG_START", Date.now().toString());
+        const tempSheet = safeOpenById(CONTROL_CENTER_ID).getSheetByName(DISPO_TEMP_TAB);
+        if (tempSheet && tempSheet.getLastRow() > 1) {
+          safeClear(CONTROL_CENTER_ID, `${DISPO_TEMP_TAB}!A2:F${tempSheet.getLastRow()}`);
         }
-      } else {
-        // Phase yielded mid-way due to time limits
-        p.deleteProperty("DISPO_AGG_RUNNING");
-        Logger.log(`⏳ [DISPO_AGG] Phase ${phase} yielded due to time limits. Will resume on next trigger.`);
-        return; // Exit the entire function, breaking the cascade
+        Logger.log(`🧹 [DISPO_AGG] Dispo_Temp cleared for fresh run.`);
       }
+
+      const allocMap = _buildDispoAllocMap();
+      if (allocMap.size === 0) {
+        Logger.log(`⚠️ [DISPO_AGG] Allocation map empty. Aborting.`);
+        _dispoAggReset(p);
+        return;
+      }
+      Logger.log(`✅ [DISPO_AGG] Allocation map: ${allocMap.size} leads. ${sources.length} source(s) active.`);
+
+      let startIdx = 0;
+      if (currentKey) {
+        const idx = sources.findIndex(s => s.key === currentKey);
+        startIdx = idx !== -1 ? idx : 0;
+      }
+
+      for (let i = startIdx; i < sources.length; i++) {
+        const src = sources[i];
+        p.setProperty("DISPO_AGG_SOURCE_KEY", src.key);
+        Logger.log(`🚀 [DISPO_AGG] Source ${i + 1}/${sources.length}: "${src.key}"...`);
+
+        const done = _dispoPhase_ReadSource(src, allocMap, startMs, hardStop);
+        if (!done) {
+          p.deleteProperty("DISPO_AGG_RUNNING");
+          Logger.log(`⏳ [DISPO_AGG] "${src.key}" yielded. Resuming next trigger.`);
+          return;
+        }
+
+        p.deleteProperty("DISPO_AGG_READ_ROW");
+        Logger.log(`✅ [DISPO_AGG] "${src.key}" complete.`);
+      }
+
+      p.setProperty("DISPO_AGG_SOURCE_KEY", DISPO_STAGE_DEDUP);
     }
 
-    // If we successfully broke out of the loop after phase 5
-    if (allPhasesComplete) {
-      _dispoAggComplete(p);
+    // ── Stage 2: Dedup + write destination ────────────────────────────────
+    Logger.log(`🚀 [DISPO_AGG] Starting dedup + write...`);
+    if (!_dispoPhase_DedupAndWrite(startMs, hardStop)) {
+      p.deleteProperty("DISPO_AGG_RUNNING");
+      Logger.log(`⏳ [DISPO_AGG] Dedup yielded. Resuming next trigger.`);
+      return;
     }
+
+    _dispoAggComplete(p);
 
   } catch(e) {
-    Logger.log(`❌ [DISPO_AGG] Phase ${phase} threw: ${e.message}\n${e.stack}`);
+    Logger.log(`❌ [DISPO_AGG] Error: ${e.message}\n${e.stack}`);
     p.deleteProperty("DISPO_AGG_RUNNING");
-    // Don't reset — preserve phase state so next trigger retries
   }
 }
 
 
-// ─── PHASE 0-3: READ SOURCE + FILTER + APPEND TO DISPO_TEMP ──────────────────
+// ─── SOURCE READER: FILTER + APPEND TO DISPO_TEMP ────────────────────────────
 
 /**
- * Reads one source sheet (PB or TCN), filters to allocated leads after their
+ * Reads one TCN dispo source sheet, filters to allocated leads after their
  * allocation date, and appends matching rows to Dispo_Temp.
  *
- * Phase 0 (PB_DISPO) also clears Dispo_Temp before writing.
+ * Called dynamically for each active Dispo_Merge source in config order.
+ * Clearing of Dispo_Temp and alloc map building are handled by the caller.
  *
- * @param {string} configKey   - Config key in Post_Sentinel tab (e.g. "PB_DISPO")
- * @param {number} phase       - Current phase number (0-3)
- * @param {number} startMs     - Execution start time
- * @param {number} hardStop    - Max execution ms
- * @returns {boolean}          - true if phase complete, false if yielded
+ * @param {Object} src       - Config entry { key, ssId, tabName, ... }
+ * @param {Map}    allocMap  - leadId → allocDateMs, built once per trigger run
+ * @param {number} startMs   - Execution start time ms
+ * @param {number} hardStop  - Max execution ms before yielding
+ * @returns {boolean}        - true if complete, false if yielded
  */
-function _dispoPhase_ReadSource(configKey, phase, startMs, hardStop) {
+function _dispoPhase_ReadSource(src, allocMap, startMs, hardStop) {
   const p = PropertiesService.getScriptProperties();
 
-  // Load source config
-  const allSources = loadPostSentinelConfig("Dispo_Merge");
-  const src = allSources.find(s => s.key === configKey);
-
-  if (!src) {
-    // Config key not active for today (e.g., TCN_DISPO_2 before day 11)
-    Logger.log(`ℹ️ [DISPO_AGG] Config key "${configKey}" not active today. Skipping phase ${phase}.`);
-    return true; // Mark as complete so we advance to next phase
-  }
-
-  // Build allocation filter map: leadId → allocDateMs
-  // Only built once (phase 0) and reused via Dispo_Temp context
-  const allocMap = _buildDispoAllocMap();
-  if (allocMap.size === 0) {
-    Logger.log(`⚠️ [DISPO_AGG] Allocation map empty. Check ImpRng_Allocations.`);
-    return true;
-  }
-  Logger.log(`✅ [DISPO_AGG] Allocation map: ${allocMap.size} leads`);
-
-  // Phase 0: clear Dispo_Temp before first write
-  if (phase === 0) {
-    p.setProperty("DISPO_AGG_START", Date.now().toString());
-    const tempSheet = safeOpenById(CONTROL_CENTER_ID).getSheetByName(DISPO_TEMP_TAB);
-    if (tempSheet && tempSheet.getLastRow() > 1) {
-      safeClear(CONTROL_CENTER_ID, `${DISPO_TEMP_TAB}!A2:F${tempSheet.getLastRow()}`);
-    }
-    Logger.log(`🧹 [DISPO_AGG] Dispo_Temp cleared for fresh run.`);
-  }
-
-  // Determine source schema
-  const isPB = (configKey === "PB_DISPO");
-
-  // Get source last row
   const srcSheet = safeOpenById(src.ssId).getSheetByName(src.tabName);
   if (!srcSheet) {
-    Logger.log(`❌ [DISPO_AGG] Source tab "${src.tabName}" not found for key "${configKey}".`);
-    return true; // Skip this source rather than blocking the chain
+    Logger.log(`❌ [DISPO_AGG] Source tab "${src.tabName}" not found for key "${src.key}".`);
+    return true;
   }
   const srcLastRow = srcSheet.getLastRow();
   if (srcLastRow < 2) {
-    Logger.log(`ℹ️ [DISPO_AGG] Source "${configKey}" is empty. Skipping.`);
+    Logger.log(`ℹ️ [DISPO_AGG] Source "${src.key}" is empty. Skipping.`);
     return true;
   }
 
-  // Read header row to find column indices dynamically
   const headers = safeGet(src.ssId, `${src.tabName}!1:1`);
   if (!headers || !headers[0]) {
-    Logger.log(`❌ [DISPO_AGG] Could not read headers for "${configKey}".`);
+    Logger.log(`❌ [DISPO_AGG] Could not read headers for "${src.key}".`);
     return true;
   }
-  
+
   const hdr = headers[0].map(h => String(h || "").trim().toLowerCase());
 
-
-
-  const colLeadId   = hdr.indexOf("mx_collection_lead_id");
+  const colLeadId             = hdr.indexOf("mx_collection_lead_id");
   const colTimestampPrimary   = hdr.indexOf("cld_created_on");
-  const colTimestampSecondary = isPB ? hdr.indexOf("ocl_call_date") : hdr.indexOf("created_at");
-  const colOutcome  = hdr.indexOf("pb_calling_status");
-  const colAgent    = isPB ? hdr.indexOf("ocl_agent") : hdr.indexOf("tcn_agent_first_name");
-  const colCampaign = isPB ? hdr.indexOf("ocl_campaign_name") : hdr.indexOf("tcn_process_name");
-
-    // DEBUG — remove after confirming
-  //Logger.log(`[DEBUG "${configKey}"] First 5 headers: ${JSON.stringify(hdr.slice(0, 5))}`);
-  //Logger.log(`[DEBUG "${configKey}"] colLeadId=${colLeadId} colTimestamp=${colTimestamp} colOutcome=${colOutcome}`);
-
+  const colTimestampSecondary = hdr.indexOf("created_at");
+  const colOutcome            = hdr.indexOf("pb_calling_status");
+  const colAgent              = hdr.indexOf("tcn_agent_first_name");
+  const colCampaign           = hdr.indexOf("tcn_process_name");
 
   if (colLeadId === -1 || (colTimestampPrimary === -1 && colTimestampSecondary === -1) || colOutcome === -1) {
-    Logger.log(`❌ [DISPO_AGG] Required columns not found in "${configKey}". Headers: ${hdr.join(", ")}`);
+    Logger.log(`❌ [DISPO_AGG] Required columns not found in "${src.key}". Headers: ${hdr.join(", ")}`);
     return true;
   }
 
-  const numCols = hdr.length;
-  const CHUNK   = getOptimalBatchSize(srcLastRow, src.tabName, numCols).limit;
-  const source  = isPB ? "PB" : "TCN";
+  const numCols      = hdr.length;
+  const CHUNK        = getOptimalBatchSize(srcLastRow, src.tabName, numCols).limit;
+  let readRow        = parseInt(p.getProperty("DISPO_AGG_READ_ROW") || "2");
+  let tempWriteRow   = _getDispoTempLastRow() + 1;
+  const tempSheetObj = safeOpenById(CONTROL_CENTER_ID).getSheetByName(DISPO_TEMP_TAB);
+  let tempMaxRows    = tempSheetObj.getMaxRows();
+  let filteredCount  = 0;
+  let totalRead      = 0;
 
-  // Resume from relay if available
-  let readRow = parseInt(p.getProperty("DISPO_AGG_READ_ROW") || "2");
-  
-  let tempWriteRow       = _getDispoTempLastRow() + 1; // always append
-  const tempSheetObj     = safeOpenById(CONTROL_CENTER_ID).getSheetByName(DISPO_TEMP_TAB);
-  let currentTempMaxRows = tempSheetObj.getMaxRows();
-
-  let filteredCount = 0;
-  let totalRead     = 0;
-
-  Logger.log(`📖 [DISPO_AGG] Reading "${configKey}" (${srcLastRow - 1} rows) from row ${readRow}...`);
+  Logger.log(`📖 [DISPO_AGG] Reading "${src.key}" (${srcLastRow - 1} rows) from row ${readRow}...`);
 
   while (readRow <= srcLastRow) {
-    // Relay check
     if (Date.now() - startMs > hardStop) {
       p.setProperty("DISPO_AGG_READ_ROW", readRow.toString());
-      Logger.log(`⏳ [DISPO_AGG] Yielding at row ${readRow}. Resuming next trigger.`);
+      Logger.log(`⏳ [DISPO_AGG] Yielding "${src.key}" at row ${readRow}.`);
       return false;
     }
 
     const end   = Math.min(readRow + CHUNK - 1, srcLastRow);
-    const range = `${src.tabName}!A${readRow}:${columnToLetter(numCols)}${end}`;
-    const chunk = safeGet(src.ssId, range);
+    const chunk = safeGet(src.ssId, `${src.tabName}!A${readRow}:${columnToLetter(numCols)}${end}`);
 
     if (!chunk || chunk.length === 0) { readRow = end + 1; continue; }
 
     const filtered = [];
     for (const row of chunk) {
       const leadId = cleanId(row[colLeadId]);
-      if (!leadId) continue;
-      if (!allocMap.has(leadId)) continue;
+      if (!leadId || !allocMap.has(leadId)) continue;
 
       const allocDateMs = allocMap.get(leadId);
-      const rawTs  = (colTimestampPrimary >= 0 && row[colTimestampPrimary] !== "" && row[colTimestampPrimary] !== null && row[colTimestampPrimary] !== undefined)
-               ? row[colTimestampPrimary]
-               : row[colTimestampSecondary];
+      const rawTs = (colTimestampPrimary >= 0 && row[colTimestampPrimary] !== "" && row[colTimestampPrimary] !== null && row[colTimestampPrimary] !== undefined)
+        ? row[colTimestampPrimary]
+        : row[colTimestampSecondary];
       const callTs = parseTimestampToMs(rawTs);
-
-      
-      //if (totalRead < 3) {
-      // Logger.log(`[DEBUG row ${totalRead}] leadId=${cleanId(row[colLeadId])} inAlloc=${allocMap.has(cleanId(row[colLeadId]))} primary="${row///[colTimestampPrimary]}" secondary="${row[colTimestampSecondary]}" parsedTs=${callTs}`);
-      //}
-      
       if (!callTs || callTs < allocDateMs) continue;
 
-    // Normalize to output schema
       filtered.push([
         leadId,
-        callTs || "", // 🚀 V8 OPTIMIZATION: Push raw milliseconds directly! No Java Bridge!
-        String(row[colOutcome] || "").trim(),
+        callTs,
+        String(row[colOutcome]  || "").trim(),
         String(colAgent    >= 0 ? row[colAgent]    : "").trim(),
         String(colCampaign >= 0 ? row[colCampaign] : "").trim(),
-        source
+        "TCN"
       ]);
-
     }
 
-      if (filtered.length > 0) {
-      // Expand Dispo_Temp if needed — same pattern as runHybridSync
-      if (tempWriteRow + filtered.length - 1 > currentTempMaxRows) {
-        const needed = (tempWriteRow + filtered.length - 1) - currentTempMaxRows + 10000;
-        tempSheetObj.insertRowsAfter(currentTempMaxRows, needed);
-        currentTempMaxRows += needed;
-        Logger.log(`📐 [DISPO_AGG] Expanded Dispo_Temp by ${needed} rows (now ${currentTempMaxRows})`);
+    if (filtered.length > 0) {
+      if (tempWriteRow + filtered.length - 1 > tempMaxRows) {
+        const needed = (tempWriteRow + filtered.length - 1) - tempMaxRows + 10000;
+        tempSheetObj.insertRowsAfter(tempMaxRows, needed);
+        tempMaxRows += needed;
+        Logger.log(`📐 [DISPO_AGG] Expanded Dispo_Temp by ${needed} rows (now ${tempMaxRows})`);
       }
       safeUpdate(
         { values: filtered },
@@ -374,7 +325,7 @@ function _dispoPhase_ReadSource(configKey, phase, startMs, hardStop) {
     readRow    = end + 1;
   }
 
-  Logger.log(`   ├─ Read: ${totalRead.toLocaleString('en-IN')} | Matched: ${filteredCount.toLocaleString('en-IN')} | Source: ${source}`);
+  Logger.log(`   ├─ Read: ${totalRead.toLocaleString('en-IN')} | Matched: ${filteredCount.toLocaleString('en-IN')} | Source: TCN`);
   return true;
 }
 
@@ -827,7 +778,7 @@ function _dispoAggComplete(p) {
 function _dispoAggReset(p) {
   p.deleteProperty("DISPO_AGG_PENDING");
   p.deleteProperty("DISPO_AGG_RUNNING");
-  p.deleteProperty("DISPO_AGG_PHASE");
+  p.deleteProperty("DISPO_AGG_SOURCE_KEY");
   p.deleteProperty("DISPO_AGG_READ_ROW");
   p.deleteProperty("DISPO_AGG_START");
 }
@@ -881,14 +832,23 @@ function setupPostSentinelTab() {
 
   // Seed rows — user fills in Sheet IDs
   const seed = [
-    ["Post_Processing", "PP_STEP_1",    "", "", "",     false, "Penal metrics source sheet ID"],
-    ["Post_Processing", "PP_STEP_2",    "", "", "",     false, "Call log source sheet ID"],
-    ["Post_Processing", "PP_STEP_3",    "", "", "",     false, "Dispo log source sheet ID"],
-    ["Dispo_Merge",     "PB_DISPO",     "", "P.B Calling Disposition", "", false, "Primary PB dispo sheet"],
-    ["Dispo_Merge",     "TCN_DISPO_1",  "", "Sheet1",  "1-10",  false, "TCN dispo days 1-10"],
-    ["Dispo_Merge",     "TCN_DISPO_2",  "", "Sheet1",  "11-20", false, "TCN dispo days 11-20"],
-    ["Dispo_Merge",     "TCN_DISPO_3",  "", "Sheet1",  "21-31", false, "TCN dispo days 21-end"],
-    ["Dispo_Merge",     "DESTINATION",  "", "",        "",      false, "Merged output destination tab"],
+    ["Post_Processing", "PP_STEP_1",       "", "",       "",      false, "Penal metrics source sheet ID"],
+    ["Post_Processing", "PP_STEP_2",       "", "",       "",      false, "Call log source sheet ID"],
+    ["Post_Processing", "PP_STEP_3",       "", "",       "",      false, "Dispo log source sheet ID"],
+    ["Dispo_Merge",     "TCN_DISPO_1",     "", "Sheet1", "1-7",   false, "TCN dispo days 1-7"],
+    ["Dispo_Merge",     "TCN_DISPO_2",     "", "Sheet1", "8-13",  false, "TCN dispo days 8-13"],
+    ["Dispo_Merge",     "TCN_DISPO_3",     "", "Sheet1", "14-18", false, "TCN dispo days 14-18"],
+    ["Dispo_Merge",     "TCN_DISPO_4",     "", "Sheet1", "19-23", false, "TCN dispo days 19-23"],
+    ["Dispo_Merge",     "TCN_DISPO_5",     "", "Sheet1", "24-31", false, "TCN dispo days 24-end"],
+    ["Dispo_Merge",     "DESTINATION",     "", "",       "",      false, "Merged dispo output destination tab"],
+    ["Call_Merge",      "OZO_CALLS",       "", "Sheet1", "",      false, "Ozonetel call log (always active)"],
+    ["Call_Merge",      "TCN_CALLS_1",     "", "Sheet1", "1-7",   false, "TCN call log days 1-7"],
+    ["Call_Merge",      "TCN_CALLS_2",     "", "Sheet1", "8-13",  false, "TCN call log days 8-13"],
+    ["Call_Merge",      "TCN_CALLS_3",     "", "Sheet1", "14-18", false, "TCN call log days 14-18"],
+    ["Call_Merge",      "TCN_CALLS_4",     "", "Sheet1", "19-23", false, "TCN call log days 19-23"],
+    ["Call_Merge",      "TCN_CALLS_5",     "", "Sheet1", "24-31", false, "TCN call log days 24-end"],
+    ["Call_Merge",      "CALL_DESTINATION","", "",       "",      false, "Merged call log destination tab"],
+    ["Call_Merge",      "CALL_AUDIT",      "", "",       "",      false, "Cross-source anomaly log tab"],
   ];
 
   sheet.getRange(2, 1, seed.length, 7).setValues(seed);

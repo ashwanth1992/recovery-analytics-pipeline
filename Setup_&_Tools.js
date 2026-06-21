@@ -125,17 +125,20 @@ function exportProjectToDrive() {
 /**
  * ⏪ Developer Tool: Dispo Aggregation Time Machine
  * Adjust the two constants below to control exactly how the engine rewinds.
+ *
+ * TARGET_SOURCE options (set to one of these exact strings):
+ *   "TCN_DISPO_1" | "TCN_DISPO_2" | "TCN_DISPO_3" | "TCN_DISPO_4" | "TCN_DISPO_5"
+ *   "__DEDUP__"   → skip straight to dedup + write
  */
 function manualDispoTimeMachine() {
-  
+
   // ⚡ USER CONFIGURATION ⚡
   // Set to true to completely wipe all aggregation state and stop the engine.
-  // Set to false to rewind to a specific phase below.
-  const FULL_RESET = false;   
-  
-  // If FULL_RESET is false, the engine will resume at this exact phase (0 to 5)
-  // Phase 0: PB Dispo | Phase 1: TCN 1 | Phase 2: TCN 2 | Phase 3: TCN 3 | Phase 4: Dedup | Phase 5: 0Bkt Input
-  const TARGET_PHASE = 0;     
+  const FULL_RESET = false;
+
+  // If FULL_RESET is false, the engine resumes from this source key.
+  // Must match a Config Key value from the Dispo_Merge rows in Post_Sentinel tab.
+  const TARGET_SOURCE = "TCN_DISPO_1";
   // ========================
 
   const p = PropertiesService.getScriptProperties();
@@ -143,27 +146,21 @@ function manualDispoTimeMachine() {
   if (FULL_RESET) {
     // 🛑 The Nuke: Wipes everything. The engine goes dormant.
     p.deleteProperty("DISPO_AGG_PENDING");
-    p.deleteProperty("DISPO_AGG_PHASE");
+    p.deleteProperty("DISPO_AGG_SOURCE_KEY");
     p.deleteProperty("DISPO_AGG_START");
     p.deleteProperty("DISPO_AGG_READ_ROW");
     p.deleteProperty("DISPO_AGG_RUNNING");
-    
-    Logger.log("🛑 FULL RESET EXECUTED: All Dispo Aggregation memory wiped. The engine will not run again until the next 1H Sentinel trigger.");
-  
+
+    Logger.log("🛑 FULL RESET EXECUTED: All Dispo Aggregation memory wiped. Engine dormant until next 1H Sentinel trigger.");
+
   } else {
-    // ⏪ The Scalpel: Rewinds to a specific phase
-    
-    // 1. Ensure the engine knows it still has work to do
+    // ⏪ The Scalpel: Rewinds to a specific source key
     p.setProperty("DISPO_AGG_PENDING", "true");
-    
-    // 2. Set the exact phase you want to target
-    p.setProperty("DISPO_AGG_PHASE", TARGET_PHASE.toString());
-    
-    // 3. Clear any mid-phase row progress or stuck locks
+    p.setProperty("DISPO_AGG_SOURCE_KEY", TARGET_SOURCE);
     p.deleteProperty("DISPO_AGG_READ_ROW");
     p.deleteProperty("DISPO_AGG_RUNNING");
-    
-    Logger.log(`⏪ REWOUND TO PHASE ${TARGET_PHASE}: Memory updated. You can now manually run 'triggerDispoAggregation' to resume from this phase.`);
+
+    Logger.log(`⏪ REWOUND TO SOURCE "${TARGET_SOURCE}": Run 'triggerDispoAggregation' to resume from here.`);
   }
 }
 

@@ -4,8 +4,8 @@
  * ==============================================================================
  */
 
-const VIEW2_ID = 'YOUR_VINTAGE_VIEW2_SHEET_ID'; // Replace with your View 2 spreadsheet ID
-const VIEW3_ID = 'YOUR_VINTAGE_VIEW3_SHEET_ID'; // Replace with your View 3 spreadsheet ID
+const VIEW2_ID = '1JG4cqJnmhn6JPZ4H3F2c3x3UNrTxFePBGKX028ZvebQ';
+const VIEW3_ID = '1TVWljxEIcG7TIfLJIjAks1K2c4UJT51EQ7SHJ-1BqNY';
 
 function doGet(e) {
   // Check the URL for a parameter (e.g., ?app=control)
@@ -14,7 +14,7 @@ function doGet(e) {
   if (app === 'control') {
     // Serve the Pipeline Control Center
     return HtmlService.createHtmlOutputFromFile('ControlCenter') // Make sure this matches your Control Center HTML filename exactly
-      .setTitle('Finance · Pipeline Control Center')
+      .setTitle('FinanceOrg · Pipeline Control Center')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
   

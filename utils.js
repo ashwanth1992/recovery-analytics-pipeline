@@ -374,8 +374,8 @@ function selfHealStuckStates() {
   if (dispoRunning && (now - parseInt(dispoRunning)) > 32 * 60 * 1000) {
     p.deleteProperty("DISPO_AGG_RUNNING"); actions.push(`Cleared stuck DISPO_AGG_RUNNING`);
   }
-  if (p.getProperty("DISPO_AGG_PHASE") && !p.getProperty("DISPO_AGG_PENDING")) {
-    p.deleteProperty("DISPO_AGG_PHASE"); p.deleteProperty("DISPO_AGG_READ_ROW"); p.deleteProperty("DISPO_AGG_START");
+  if (p.getProperty("DISPO_AGG_SOURCE_KEY") && !p.getProperty("DISPO_AGG_PENDING")) {
+    p.deleteProperty("DISPO_AGG_SOURCE_KEY"); p.deleteProperty("DISPO_AGG_READ_ROW"); p.deleteProperty("DISPO_AGG_START");
     actions.push(`Cleared orphan DISPO_AGG flags`);
   }
   // ── CALL AGG ──
@@ -383,8 +383,8 @@ function selfHealStuckStates() {
   if (callRunning && (now - parseInt(callRunning)) > 32 * 60 * 1000) {
     p.deleteProperty("CALL_AGG_RUNNING"); actions.push(`Cleared stuck CALL_AGG_RUNNING`);
   }
-  if (p.getProperty("CALL_AGG_PHASE") && !p.getProperty("CALL_AGG_PENDING")) {
-    p.deleteProperty("CALL_AGG_PHASE");
+  if (p.getProperty("CALL_AGG_SOURCE_KEY") && !p.getProperty("CALL_AGG_PENDING")) {
+    p.deleteProperty("CALL_AGG_SOURCE_KEY");
     p.deleteProperty("CALL_AGG_START");
     p.deleteProperty("CALL_AGG_READ_ROW");
     actions.push(`Cleared orphan CALL_AGG flags`);

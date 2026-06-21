@@ -8,7 +8,7 @@ function sendCombinedSheetsCsvZip() {
   Logger.log('--- Starting Nightly CSV Backup (API Native Export) ---');
 
   const SHEETS_TO_EXPORT = [
-    { spreadsheetId: 'YOUR_SOURCE_SPREADSHEET_ID', sheetName: 'Base_data', friendlyName: 'Daily Base' } // Replace with your source spreadsheet ID
+    { spreadsheetId: '1JgH-xEAtr0cLiGtOjgpDYiXZwDl-FRe6mCb8IeLRO3M', sheetName: 'Base_data', friendlyName: 'Mar26 - Daily Base' }
   ];
 
   const tz = GLOBAL_TZ;

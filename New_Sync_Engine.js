@@ -7,7 +7,7 @@
  */
 
 // ⚡ USER CONFIGURATION
-const CONTROL_CENTER_ID = "YOUR_CONTROL_CENTER_SHEET_ID"; // Replace with your Control Center spreadsheet ID
+const CONTROL_CENTER_ID = "YOUR_CONTROL_CENTER_SHEET_ID";
 const CONTROL_TAB_NAME = "Routing_Config";
 const MAX_EXECUTION_TIME_MS = 25 * 60 * 1000; 
 
@@ -20,7 +20,7 @@ const GLOBAL_TZ = Session.getScriptTimeZone();
 // ✅ FIX: Evaluate at call time, not parse time. If deployment mode changes
 // (e.g., USER_DEPLOYING → USER_ACCESSING), getActiveUser() can return empty,
 // and we want the fallback to kick in at that moment.
-const FALLBACK_ALERT_EMAIL = "your-alert-email@example.com"; // Replace with your alert recipient email
+const FALLBACK_ALERT_EMAIL = "ashwanth.padmanabhan@werize.com";
 
 function getAlertEmail() {
   try {
@@ -112,7 +112,7 @@ if (pausedUntil > nowMs) {
     if (!p.getProperty("PAUSE_ALERT_SENT")) {
       MailApp.sendEmail({
         to: Session.getActiveUser().getEmail(),
-        subject: "⏸️ Finance Pipeline — Paused for over 2 hours",
+        subject: "⏸️ FinanceOrg Pipeline — Paused for over 2 hours",
         body: `The CBC & Penal Recovery Pipeline has been paused since ${new Date(pausedAt).toLocaleString()}.\n\nPlease resume manually from the Control Center.`
       });
       p.setProperty("PAUSE_ALERT_SENT", "true");

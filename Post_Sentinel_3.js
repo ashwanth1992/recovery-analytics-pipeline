@@ -107,11 +107,9 @@ function runPostProcessing() {
 function _setPostSentinelFlag(scheduleMode, p) {
   if (scheduleMode === "1H" || scheduleMode === "1D" || scheduleMode === "NIGHTLY") {
     p.setProperty("DISPO_AGG_PENDING", "true");
-    p.setProperty("DISPO_AGG_PHASE",   "0");
     p.setProperty("DISPO_AGG_START",   Date.now().toString());
 
     p.setProperty("CALL_AGG_PENDING", "true");
-    p.setProperty("CALL_AGG_PHASE",   "0");
     p.setProperty("CALL_AGG_START",   Date.now().toString());
 
     p.deleteProperty("DISPO_AGG_DONE");

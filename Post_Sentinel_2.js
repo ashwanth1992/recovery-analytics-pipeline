@@ -5,13 +5,8 @@
 // fires only when BOTH engines complete (two-flag fence).
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const CALL_AGG_PHASE_LABELS = {
-  0: "Ozonetel calls read",
-  1: "TCN Calls 1 read",
-  2: "TCN Calls 2 read",
-  3: "TCN Calls 3 read",
-  4: "Anomaly scan"
-};
+// Resume sentinel value stored in CALL_AGG_SOURCE_KEY
+const CALL_STAGE_ANOMALY = "__ANOMALY__";
 
 const CALL_OUTPUT_HEADERS = [
   "lead_id", "phone_number", "call_timestamp",
@@ -55,6 +50,12 @@ const OUT_COL = {
 // MAIN TRIGGER  (run every 10 minutes)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Dynamically iterates all active Call_Merge sources from the Post_Sentinel
+ * config tab (OZO_CALLS first if active, then any TCN_CALLS_* entries in
+ * config order). Adding a new source sheet only requires a new config row.
+ * Resume state is stored as the source's config key (CALL_AGG_SOURCE_KEY).
+ */
 function triggerCallAggregation() {
   const p = PropertiesService.getScriptProperties();
 
@@ -69,13 +70,11 @@ function triggerCallAggregation() {
   p.setProperty("CALL_AGG_RUNNING", Date.now().toString());
 
   try {
-    let phase = parseInt(p.getProperty("CALL_AGG_PHASE") || "0");
-    const startTime = Date.now();
-    const HARD_STOP = 24 * 60 * 1000;
+    const startTime  = Date.now();
+    const HARD_STOP  = 24 * 60 * 1000;
+    const currentKey = p.getProperty("CALL_AGG_SOURCE_KEY");
+    const freshStart = !currentKey;
 
-    Logger.log(`🚀 [CALL_AGG] Trigger fired. Resuming from phase ${phase}.`);
-
-    // Build alloc map once per execution (rebuilt on each trigger if relayed)
     const allocMap = _buildCallAllocMap();
     if (!allocMap || allocMap.size === 0) {
       Logger.log(`⚠️ [CALL_AGG] Alloc map is empty. Aborting.`);
@@ -84,37 +83,56 @@ function triggerCallAggregation() {
     }
     Logger.log(`✅ [CALL_AGG] Allocation map: ${allocMap.size} leads.`);
 
-    while (phase <= 4) {
-      if (Date.now() - startTime > HARD_STOP) {
-        Logger.log(`⏸️ [CALL_AGG] Hard stop before phase ${phase}. Will resume next trigger.`);
-        p.setProperty("CALL_AGG_PHASE", phase.toString());
-        p.deleteProperty("CALL_AGG_RUNNING");
+    // ── Stage 1: Read all active sources into destination ─────────────────
+    if (currentKey !== CALL_STAGE_ANOMALY) {
+      const sources = loadPostSentinelConfig("Call_Merge")
+        .filter(s => s.key !== "CALL_DESTINATION" && s.key !== "CALL_AUDIT");
+
+      if (sources.length === 0) {
+        Logger.log("⚠️ [CALL_AGG] No active Call_Merge sources in Post_Sentinel tab. Aborting.");
+        _callAggReset(p);
         return;
       }
 
-      Logger.log(`🚀 [CALL_AGG] Starting phase ${phase}: ${CALL_AGG_PHASE_LABELS[phase]}`);
-      let done = false;
-
-      switch (phase) {
-        case 0: done = _callPhase_ReadOzonetel(allocMap, startTime, HARD_STOP); break;
-        case 1: done = _callPhase_ReadTCN("TCN_CALLS_1", 1, allocMap, startTime, HARD_STOP); break;
-        case 2: done = _callPhase_ReadTCN("TCN_CALLS_2", 2, allocMap, startTime, HARD_STOP); break;
-        case 3: done = _callPhase_ReadTCN("TCN_CALLS_3", 3, allocMap, startTime, HARD_STOP); break;
-        case 4: done = _callPhase_AnomalyScan(); break;
+      if (freshStart) {
+        p.setProperty("CALL_AGG_START", Date.now().toString());
+        const dst = loadPostSentinelConfig("Call_Merge").find(s => s.key === "CALL_DESTINATION");
+        if (dst) _callAgg_ClearDestination(dst);
       }
 
-      if (!done) {
-        Logger.log(`⏸️ [CALL_AGG] Phase ${phase} incomplete. Will retry next trigger.`);
-        p.setProperty("CALL_AGG_PHASE", phase.toString());
-        p.deleteProperty("CALL_AGG_RUNNING");
-        return;
+      let startIdx = 0;
+      if (currentKey) {
+        const idx = sources.findIndex(s => s.key === currentKey);
+        startIdx = idx !== -1 ? idx : 0;
       }
 
-      Logger.log(`✅ [CALL_AGG] Phase ${phase} complete.`);
-      phase++;
-      p.setProperty("CALL_AGG_PHASE", phase.toString());
-      p.deleteProperty("CALL_AGG_READ_ROW");
+      Logger.log(`📋 [CALL_AGG] ${sources.length} source(s) active. Resuming from "${currentKey || sources[0].key}".`);
+
+      for (let i = startIdx; i < sources.length; i++) {
+        const src = sources[i];
+        p.setProperty("CALL_AGG_SOURCE_KEY", src.key);
+        Logger.log(`🚀 [CALL_AGG] Source ${i + 1}/${sources.length}: "${src.key}"...`);
+
+        const done = src.key === "OZO_CALLS"
+          ? _callPhase_ReadOzonetel(src, allocMap, startTime, HARD_STOP)
+          : _callPhase_ReadTCN(src, allocMap, startTime, HARD_STOP);
+
+        if (!done) {
+          p.deleteProperty("CALL_AGG_RUNNING");
+          Logger.log(`⏸️ [CALL_AGG] "${src.key}" yielded. Resuming next trigger.`);
+          return;
+        }
+
+        p.deleteProperty("CALL_AGG_READ_ROW");
+        Logger.log(`✅ [CALL_AGG] "${src.key}" complete.`);
+      }
+
+      p.setProperty("CALL_AGG_SOURCE_KEY", CALL_STAGE_ANOMALY);
     }
+
+    // ── Stage 2: Anomaly scan ─────────────────────────────────────────────
+    Logger.log(`🔍 [CALL_AGG] Starting anomaly scan...`);
+    _callPhase_AnomalyScan();
 
     _callAggComplete(p);
 
@@ -140,7 +158,7 @@ function _callAggComplete(p) {
 }
 
 function _callAggReset(p) {
-  ["CALL_AGG_PENDING", "CALL_AGG_RUNNING", "CALL_AGG_PHASE", "CALL_AGG_START", "CALL_AGG_READ_ROW"]
+  ["CALL_AGG_PENDING", "CALL_AGG_RUNNING", "CALL_AGG_SOURCE_KEY", "CALL_AGG_START", "CALL_AGG_READ_ROW"]
     .forEach(k => p.deleteProperty(k));
 }
 
@@ -179,23 +197,13 @@ function _buildCallAllocMap() {
 // PHASE 0: OZONETEL (chunked read + chunked write + relay)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function _callPhase_ReadOzonetel(allocMap, startMs, hardStop) {
+function _callPhase_ReadOzonetel(src, allocMap, startMs, hardStop) {
   try {
-    const p = PropertiesService.getScriptProperties();
-    const allSources = loadPostSentinelConfig("Call_Merge");
-    const src = allSources.find(s => s.key === "OZO_CALLS");
-    const dst = allSources.find(s => s.key === "CALL_DESTINATION");
-
-    if (!src) {
-      Logger.log(`ℹ️ [CALL_AGG] OZO_CALLS not active today. Skipping phase 0.`);
-      if (dst) _callAgg_ClearDestination(dst);
-      return true;
-    }
+    const p   = PropertiesService.getScriptProperties();
+    const dst = loadPostSentinelConfig("Call_Merge").find(s => s.key === "CALL_DESTINATION");
     if (!dst) { Logger.log(`❌ [CALL_AGG] CALL_DESTINATION not configured.`); return false; }
 
-    // Resume from relay if mid-phase, else fresh phase 0 — clear destination
     let readRow = parseInt(p.getProperty("CALL_AGG_READ_ROW") || "2");
-    if (readRow === 2) _callAgg_ClearDestination(dst);
 
     const srcSheet   = safeOpenById(src.ssId).getSheetByName(src.tabName);
     const srcLastRow = srcSheet ? srcSheet.getLastRow() : 0;
@@ -299,7 +307,7 @@ function _callPhase_ReadOzonetel(allocMap, startMs, hardStop) {
         try {
           MailApp.sendEmail(
             ALERT_EMAIL,
-            "⚠️ Finance Pipeline: OZO call_date format issue detected",
+            "⚠️ FinanceOrg Pipeline: OZO call_date format issue detected",
             `${ozDateTracker.rejected} of ${totalRead} OZO rows (${pct}%) had dates outside the valid window (90 days ago → 7 days future).\n\n` +
             `This usually means a date format change in the Ozonetel source sheet (e.g. DD/MM vs MM/DD vs YYYY-MM-DD).\n\n` +
             `Sample bad values:\n${JSON.stringify(ozDateTracker.samples, null, 2)}\n\n` +
@@ -327,24 +335,17 @@ function _callPhase_ReadOzonetel(allocMap, startMs, hardStop) {
 // PHASES 1-3: TCN CALLS (chunked read + chunked write + relay)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function _callPhase_ReadTCN(key, phaseNum, allocMap, startMs, hardStop) {
+function _callPhase_ReadTCN(src, allocMap, startMs, hardStop) {
   try {
-    const p = PropertiesService.getScriptProperties();
-    const allSources = loadPostSentinelConfig("Call_Merge");
-    const src = allSources.find(s => s.key === key);
-    const dst = allSources.find(s => s.key === "CALL_DESTINATION");
-
-    if (!src) {
-      Logger.log(`ℹ️ [CALL_AGG] Config key "${key}" not active today. Skipping phase ${phaseNum}.`);
-      return true;
-    }
+    const p   = PropertiesService.getScriptProperties();
+    const dst = loadPostSentinelConfig("Call_Merge").find(s => s.key === "CALL_DESTINATION");
     if (!dst) { Logger.log(`❌ [CALL_AGG] CALL_DESTINATION not configured.`); return false; }
 
     let readRow = parseInt(p.getProperty("CALL_AGG_READ_ROW") || "2");
     const srcSheet   = safeOpenById(src.ssId).getSheetByName(src.tabName);
     const srcLastRow = srcSheet ? srcSheet.getLastRow() : 0;
     if (srcLastRow < 2) {
-      Logger.log(`ℹ️ [CALL_AGG] Source "${key}" is empty. Skipping.`);
+      Logger.log(`ℹ️ [CALL_AGG] Source "${src.key}" is empty. Skipping.`);
       p.deleteProperty("CALL_AGG_READ_ROW");
       return true;
     }
@@ -355,7 +356,7 @@ function _callPhase_ReadTCN(key, phaseNum, allocMap, startMs, hardStop) {
     let chunkNum = 0;
     let totalRead = 0, filteredCount = 0;
 
-    Logger.log(`📖 [CALL_AGG] Reading "${key}" (${srcLastRow - 1} rows) from row ${readRow}...`);
+    Logger.log(`📖 [CALL_AGG] Reading "${src.key}" (${srcLastRow - 1} rows) from row ${readRow}...`);
     Logger.log(`   ├─ Chunk size: ${CHUNK.toLocaleString()} rows | Total chunks: ${totalChunks}`);
 
     while (readRow <= srcLastRow) {
@@ -626,7 +627,7 @@ function manualRunCallAgg() {
 
   // Set up for a fresh run from phase 0
   p.setProperty("CALL_AGG_PENDING", "true");
-  p.setProperty("CALL_AGG_PHASE",   "0");
+  p.deleteProperty("CALL_AGG_SOURCE_KEY");
   p.setProperty("CALL_AGG_START",   Date.now().toString());
 
   // Set DISPO_AGG_DONE so the fence doesn't block PP during manual testing

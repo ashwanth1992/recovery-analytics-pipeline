@@ -105,6 +105,60 @@ Google Sheets has a 10 million cell limit per spreadsheet. Accumulating a full y
 
 **Runtime:** Google Apps Script (V8), Google Sheets API v4. No external database — state is persisted in Script Properties. Deployable via `clasp`.
 
+### File Map
+
+| File | Purpose |
+|---|---|
+| `scheduler.js` | Core orchestrator — reads config, routes jobs, manages relay/resume and semaphores |
+| `sheet_sync.js` | Copy, filter, lookup-join, and sum-join job handlers |
+| `payment_aggregation.js` | Aggregates raw payments into per-lead collection summaries |
+| `data_inputs.js` | Conditional base data updates (RAM-map approach) |
+| `dashboard_calc.js` | Dashboard and allocation calculation jobs |
+| `dispo_aggregation.js` | Incremental disposition log aggregation + deduplication |
+| `call_aggregation.js` | Incremental call log aggregation + cross-source anomaly scan |
+| `post_processing.js` | Penal metrics, discounts, and daily inputs from aggregated logs |
+| `vintage_views.js` | Vintage charge analysis — View 2 → View 3 waterfall allocation |
+| `vintage_backend.js` | Backend for the Vintage Views web app |
+| `validation.js` | Config validator, header alignment checker, source freshness alerts |
+| `control_center_backend.js` | Control Center web app backend (state, job status, run history) |
+| `setup_tools.js` | Trigger installation, developer utilities, month-end reset tools |
+| `daily_export.js` | Daily base data export job |
+| `utils.js` | Shared utilities — parsing, MD5 hashing, batching, exponential backoff |
+| `control_center.html` | Monitoring UI — real-time pipeline status, manual run/pause controls |
+| `vintage_views.html` | Vintage analysis web app UI |
+
+---
+
+## Vintage Charge Analysis
+
+Alongside the live recovery pipeline, the system includes a separate charge vintage analysis that the CEO's office, Finance, and Strategy teams use to assess recoverability of ageing outstanding charges.
+
+**What "vintage" means here:** every bounce charge and penal charge levied on a borrower is bucketed by age — how long it has been outstanding — across five bands: 0–3 months, 4–6 months, 7–12 months, 13–24 months, and 24+ months. Three views of the same data are tracked:
+
+- **Accrued** — the gross amount levied (regardless of whether it has been paid or waived)
+- **Paid** — how much has actually been collected against each vintage bucket
+- **Outstanding** — what remains unpaid after payments and waivers
+
+The primary business question this answers: *can we recover older outstanding charges with better waiver policies, or has the collection window for those buckets effectively closed?* Comparing the paid-to-accrued ratio across vintage bands gives the strategy team a data-backed basis for recommending waiver thresholds by age.
+
+**How it works:**
+
+```
+[Source Sheets]                          [Vintage Master Sheet]
+  Charge accrual data        ──────────►   View 1: Raw accrued/paid/outstanding
+  Payment records                               │
+                                                ▼
+                                          generateVintageViews()   [manual trigger]
+                                               │
+                                    ┌──────────┴──────────┐
+                                    ▼                     ▼
+                               View 2                  View 3
+                         (waterfall allocation    (final allocated
+                          by vintage band)         recovery view)
+```
+
+View 2 applies a waterfall allocation — payments are applied to the oldest outstanding charges first, then progressively to newer ones. View 3 shows the result after allocation: how much of each vintage band has been effectively recovered vs. remains exposed. This is the view shared with leadership for waiver policy discussions.
+
 ---
 
 ## Scale
@@ -129,12 +183,12 @@ The pipeline manages sync jobs across more than a dozen source–destination she
    clasp create --type sheets --title "Recovery Pipeline"
    ```
 
-2. **Configure sheet IDs** in `New_Sync_Engine.js`:
+2. **Configure sheet IDs** in `scheduler.js`:
    ```js
    const CONTROL_CENTER_ID    = "YOUR_CONTROL_CENTER_SHEET_ID";
    const FALLBACK_ALERT_EMAIL = "your-email@example.com";
    ```
-   And in `Vintage.js` / `VV_Backend.js`:
+   And in `vintage_views.js` / `vintage_backend.js`:
    ```js
    const VINTAGE_VIEW2_ID  = "YOUR_VINTAGE_VIEW2_SHEET_ID";
    const VINTAGE_VIEW3_ID  = "YOUR_VINTAGE_VIEW3_SHEET_ID";

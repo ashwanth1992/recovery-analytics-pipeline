@@ -20,7 +20,7 @@ const GLOBAL_TZ = Session.getScriptTimeZone();
 // ✅ FIX: Evaluate at call time, not parse time. If deployment mode changes
 // (e.g., USER_DEPLOYING → USER_ACCESSING), getActiveUser() can return empty,
 // and we want the fallback to kick in at that moment.
-const FALLBACK_ALERT_EMAIL = "ashwanth.padmanabhan@werize.com";
+const FALLBACK_ALERT_EMAIL = "your-email@example.com";
 
 function getAlertEmail() {
   try {

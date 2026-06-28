@@ -4,8 +4,8 @@
  * ==============================================================================
  */
 
-const VIEW2_ID = '1JG4cqJnmhn6JPZ4H3F2c3x3UNrTxFePBGKX028ZvebQ';
-const VIEW3_ID = '1TVWljxEIcG7TIfLJIjAks1K2c4UJT51EQ7SHJ-1BqNY';
+const VIEW2_ID = 'YOUR_VINTAGE_VIEW2_SHEET_ID';
+const VIEW3_ID = 'YOUR_VINTAGE_VIEW3_SHEET_ID';
 
 function doGet(e) {
   // Check the URL for a parameter (e.g., ?app=control)

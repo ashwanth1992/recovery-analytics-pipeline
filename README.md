@@ -105,6 +105,42 @@ Google Sheets has a 10 million cell limit per spreadsheet. Accumulating a full y
 
 **Runtime:** Google Apps Script (V8), Google Sheets API v4. No external database — state is persisted in Script Properties. Deployable via `clasp`.
 
+---
+
+## Screenshots
+
+### Control Center — Dashboard view
+The main monitoring UI showing 25 active jobs, last run times for the hourly pipeline, and the three sub-engines (dispo aggregation, call aggregation, post-processing) with their individual run status.
+
+![Control Center Dashboard](screenshots/Pipeline_Demo_4.png)
+
+### Control Center — Pipeline running live
+The pipeline mid-execution, showing the active job progress bar, current job name, and the "1H pipeline running" status indicator.
+
+![Pipeline Running](screenshots/Pipeline_Demo_8.png)
+
+### Job list — config-driven design
+Every sync job defined as a row: job name, schedule (1H / 30M / DEDICATED / NIGHTLY), last run time, status, and duration. Adding a new data source is a row addition — no code change required.
+
+![Job List](screenshots/Pipeline_Demo_2.png)
+
+### Job list — full schedule view
+Scrolled down showing the full range of job types and schedules, including dedicated payment sync, nightly backup export, and dashboard enrichment jobs.
+
+![Job List Full](screenshots/Pipeline_Demo_10.png)
+
+### Run history
+Audit log of every pipeline execution — timestamp, which pipeline ran (1H / 30M / CALL / DISPO / PP), and outcome. Useful for diagnosing gaps in data freshness.
+
+![Run History](screenshots/Pipeline_Demo_3.png)
+
+### Sample output — payment summary sheet
+A sample of the aggregated payment output written by the pipeline to the destination sheet, showing charge type and payment method breakdown per lead.
+
+![Payment Output](screenshots/Pipeline_Demo_6.png)
+
+---
+
 ### File Map
 
 | File | Purpose |
